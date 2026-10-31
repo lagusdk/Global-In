@@ -1,63 +1,31 @@
-import { BOND_AUTHORITY, RULES_BY_ID, bondSourceFor } from "./kb/au";
-import type { AuState, DocType, EmploymentType, Extracted, Finding, Level, PersonaId } from "./types";
+import { BOND_AUTHORITY, bondSourceFor } from "./kb/au";
+import { runRulesJp } from "./ruleEngineJp";
+import { assignmentChecks, dedupe, find, fromRule, quoteAround, sortFindings } from "./ruleUtil";
+import type { AuState, Country, DocType, EmploymentType, Extracted, Finding, PersonaId } from "./types";
 import { formatAud, minimumHourly } from "./wage";
+
+export { sortFindings } from "./ruleUtil";
 
 /**
  * 규칙 엔진: 정규식으로 위험 조항 후보를 찾는다.
  * LLM 없이도 동작하고, LLM이 놓친 항목을 보완하며, 숫자 판정(최저임금 비교)은 항상 여기서 한다.
+ * 국가별 규칙은 runRules가 나눠 부른다 (호주: 이 파일, 일본: ruleEngineJp.ts).
  */
 
-export type RuleContext = { persona: PersonaId; state: AuState; docType: DocType };
+/** region: 호주는 주(QLD·NSW·VIC), 일본은 도시 id */
+export type RuleContext = { country: Country; persona: PersonaId; region: string; docType: DocType };
 
 export type RuleOutput = { findings: Finding[]; extracted: Extracted };
 
-const LEVEL_ORDER: Record<Level, number> = { risk: 0, caution: 1, info: 2 };
-
-export function sortFindings(findings: Finding[]): Finding[] {
-  return [...findings].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]);
-}
-
 export function detectDocType(text: string): DocType {
   const t = text.toLowerCase();
-  if (/assignment|secondment|expatriate|파견|발령|주재원/.test(t)) return "assignment_letter";
-  if (/gross pay|net pay|pay period|year to date|\bytd\b|pay ?slip\s*(?:for|period|date|no)/.test(t)) return "payslip";
-  if (/offer of (?:admission|enrolment|enrollment)|confirmation of enrolment|\bcoe\b|tuition fee|입학/.test(t)) return "offer_letter";
-  if (/tenancy|lease agreement|landlord|tenant|\brent\b|share ?house|room for rent/.test(t)) return "lease";
-  if (/we are hiring|we're hiring|apply now|vacancy|job ad|now hiring|구인/.test(t)) return "job_ad";
-  if (/employment|employee|employer|position|per hour|hourly|근로계약/.test(t)) return "employment_contract";
+  if (/assignment|secondment|expatriate|파견|발령|주재원|出向|赴任|辞令/.test(t)) return "assignment_letter";
+  if (/gross pay|net pay|pay period|year to date|\bytd\b|pay ?slip\s*(?:for|period|date|no)|給与明細書|支給額|差引支給/.test(t)) return "payslip";
+  if (/offer of (?:admission|enrolment|enrollment)|confirmation of enrolment|\bcoe\b|tuition fee|입학|入学許可/.test(t)) return "offer_letter";
+  if (/tenancy|lease agreement|landlord|tenant|\brent\b|share ?house|room for rent|賃貸|家賃|敷金|礼金|シェアハウス/.test(t)) return "lease";
+  if (/we are hiring|we're hiring|apply now|vacancy|job ad|now hiring|구인|求人|募集|スタッフ大募集/.test(t)) return "job_ad";
+  if (/employment|employee|employer|position|per hour|hourly|근로계약|雇用契約|労働条件通知書|時給/.test(t)) return "employment_contract";
   return "other";
-}
-
-/** 매칭된 위치가 들어 있는 문장(줄)을 원문 인용으로 돌려준다. */
-function quoteAround(text: string, index: number): string {
-  // 문장 끝은 마침표 뒤에 공백·줄바꿈·끝이 올 때만 본다 ($22.00 같은 소수점에서 자르지 않도록).
-  const start = Math.max(text.lastIndexOf("\n", index), text.lastIndexOf(". ", index) + 1, 0);
-  const sentenceEnd = /\.(?=\s|$)|\n/g;
-  sentenceEnd.lastIndex = index;
-  const m = sentenceEnd.exec(text);
-  const end = m ? (m[0] === "." ? m.index + 1 : m.index) : text.length;
-  const q = text.slice(start, end).trim().replace(/\s+/g, " ");
-  return q.length > 180 ? q.slice(0, 177) + "…" : q;
-}
-
-function find(text: string, re: RegExp): { index: number; match: RegExpExecArray } | null {
-  const m = re.exec(text);
-  return m ? { index: m.index, match: m } : null;
-}
-
-function fromRule(ruleId: string, extra: Partial<Finding> = {}): Finding {
-  const r = RULES_BY_ID[ruleId];
-  return {
-    ruleId,
-    level: r.level,
-    title: r.title,
-    explanation: r.explain,
-    korea: r.korea,
-    action: r.action,
-    source: r.source.url ? r.source : { ...r.source },
-    origin: "rule",
-    ...extra,
-  };
 }
 
 function findRate(text: string): { value: number; index: number } | null {
@@ -95,6 +63,11 @@ export function extractFields(text: string): Extracted {
 }
 
 export function runRules(text: string, ctx: RuleContext): RuleOutput {
+  return ctx.country === "JP" ? runRulesJp(text, ctx) : runRulesAu(text, ctx);
+}
+
+function runRulesAu(text: string, ctx: RuleContext): RuleOutput {
+  const state = ctx.region as AuState;
   const findings: Finding[] = [];
   const extracted = extractFields(text);
   const t = text.toLowerCase();
@@ -156,12 +129,12 @@ export function runRules(text: string, ctx: RuleContext): RuleOutput {
       /bond[^.\n]{0,120}(?:my|our|the landlord'?s?|owner'?s?|personal)\s+(?:bank\s+)?account|bond[^.\n]{0,60}\bcash\b|(?:transfer|pay)[^.\n]{0,40}(?:bond|deposit)[^.\n]{0,40}(?:to me|directly)/,
     );
     if (bond) {
-      const a = BOND_AUTHORITY[ctx.state];
+      const a = BOND_AUTHORITY[state];
       findings.push(
         fromRule("AU-BOND-PRIVATE", {
           quote: quoteAround(text, bond.index),
           explanation: `정식 임대차라면 집주인은 보증금을 ${a.within} ${a.name}에 맡겨야 해요. 개인 계좌로만 받으면 나중에 돌려받기 어려워요.`,
-          source: bondSourceFor(ctx.state),
+          source: bondSourceFor(state),
         }),
       );
     }
@@ -190,43 +163,8 @@ export function runRules(text: string, ctx: RuleContext): RuleOutput {
   const sponsor = find(t, /sponsor(?:ship)?[^.\n]{0,80}(?:fee|cost|pay|\$)|(?:fee|\$\s?\d)[^.\n]{0,60}sponsor/);
   if (sponsor) findings.push(fromRule("AU-SPONSOR-PAY", { quote: quoteAround(text, sponsor.index) }));
 
-  // 13) 파견 발령서 체크리스트 — 빠졌거나 '별도 협의'로만 적힌 항목을 찾는다 (영문·국문 모두)
-  if (ctx.docType === "assignment_letter") {
-    const checks: [string, RegExp, string][] = [
-      ["WK-HOUSING", /housing|accommodation|rent allowance|주거|주택|숙소|임차/, "주거 지원"],
-      ["WK-TAX", /\btax|withholding|equali[sz]ation|세금|원천징수|소득세/, "세금 처리"],
-      ["WK-PENSION", /pension|social security|certificate of coverage|국민연금|사회보장/, "연금 처리"],
-      ["WK-INSURANCE", /insurance|medical|health cover|보험|의료/, "의료보험"],
-      ["WK-RETURN", /repatriation|return to korea|end of (?:the )?assignment|귀임|복귀|귀국/, "귀임 조건"],
-    ];
-    const vague = /별도\s*협의|추후\s*(?:협의|결정)|to be (?:discussed|confirmed|agreed)|\btbd\b|\btbc\b/;
-    for (const [id, re, label] of checks) {
-      const hit = find(t, re);
-      if (!hit) {
-        findings.push(fromRule(id));
-        continue;
-      }
-      const line = quoteAround(text, hit.index);
-      if (vague.test(line.toLowerCase())) findings.push(fromRule(id, { title: `${label}${subjectParticle(label)} '별도 협의'로만 적혀 있어요`, quote: line }));
-    }
-  }
+  // 13) 파견 발령서 체크리스트
+  if (ctx.docType === "assignment_letter") findings.push(...assignmentChecks(text));
 
   return { findings: sortFindings(dedupe(findings)), extracted };
-}
-
-/** 받침 유무에 따라 '이'/'가'를 고른다. */
-function subjectParticle(word: string): string {
-  const code = word.charCodeAt(word.length - 1) - 0xac00;
-  if (code < 0 || code > 11171) return "이";
-  return code % 28 === 0 ? "가" : "이";
-}
-
-function dedupe(findings: Finding[]): Finding[] {
-  const seen = new Set<string>();
-  return findings.filter((f) => {
-    const key = f.ruleId ?? f.title;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }

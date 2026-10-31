@@ -5,18 +5,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IconLock } from "@/components/icons";
 import type { OrgId } from "@/lib/brief";
-import { CITIES } from "@/lib/kb/au";
+import { CITIES, COUNTRIES, citiesOf } from "@/lib/kb/countries";
 import { ORG_TYPES, getOrgSession, setOrgSession } from "@/lib/orgSession";
-import type { CityId } from "@/lib/types";
+import type { CityId, Country } from "@/lib/types";
 
 const CITY_IDS = Object.keys(CITIES) as CityId[];
 
 export default function OrgLogin() {
   const router = useRouter();
   const [org, setOrg] = useState<OrgId>("uni");
+  const [country, setCountry] = useState<Country>("AU");
   const [name, setName] = useState("");
   const [manager, setManager] = useState("");
-  const [members, setMembers] = useState<Record<CityId, string>>({ brisbane: "", sydney: "", melbourne: "" });
+  const [members, setMembers] = useState<Partial<Record<CityId, string>>>({});
   const [departing, setDeparting] = useState("");
 
   useEffect(() => {
@@ -30,18 +31,19 @@ export default function OrgLogin() {
     const e = type.example;
     setName(e.name);
     setManager(e.manager);
-    setMembers({ brisbane: String(e.members.brisbane), sydney: String(e.members.sydney), melbourne: String(e.members.melbourne) });
+    setMembers(Object.fromEntries(CITY_IDS.map((c) => [c, String(e.members[c] ?? 0)])));
     setDeparting(String(e.departing));
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const num = (v: string) => Math.max(0, Math.min(9999, Math.round(Number(v) || 0)));
+    const num = (v?: string) => Math.max(0, Math.min(9999, Math.round(Number(v) || 0)));
     setOrgSession({
       org,
+      country,
       name: name.trim() || type.example.name,
       manager: manager.trim() || "담당자",
-      members: { brisbane: num(members.brisbane), sydney: num(members.sydney), melbourne: num(members.melbourne) },
+      members: Object.fromEntries(CITY_IDS.map((c) => [c, num(members[c])])),
       departing: num(departing),
       at: new Date().toISOString(),
     });
@@ -98,16 +100,29 @@ export default function OrgLogin() {
           </label>
         </div>
 
+        <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+          <legend className="h2" style={{ marginBottom: 8 }}>
+            주로 보는 국가
+          </legend>
+          <div className="seg" role="group" aria-label="국가" style={{ alignSelf: "flex-start" }}>
+            {(Object.keys(COUNTRIES) as Country[]).map((k) => (
+              <button key={k} type="button" aria-pressed={country === k} onClick={() => setCountry(k)}>
+                {COUNTRIES[k].label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
         {type.memberLabel && (
           <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
             <legend className="h2" style={{ marginBottom: 8 }}>
-              호주 {type.memberLabel} 수 (도시별)
+              {COUNTRIES[country].label} {type.memberLabel} 수 (도시별)
             </legend>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-              {CITY_IDS.map((c) => (
+              {citiesOf(country).map((c) => (
                 <label key={c} className="field">
                   {CITIES[c].label}
-                  <input className="input mono" inputMode="numeric" value={members[c]} onChange={(e) => setMembers((m) => ({ ...m, [c]: e.target.value }))} placeholder="0" />
+                  <input className="input mono" inputMode="numeric" value={members[c] ?? ""} onChange={(e) => setMembers((m) => ({ ...m, [c]: e.target.value }))} placeholder="0" />
                 </label>
               ))}
             </div>

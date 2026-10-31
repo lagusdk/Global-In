@@ -26,7 +26,9 @@ export async function rehearseTurn(input: RehearseInput): Promise<RehearseReply>
       reply: step.reply,
       coach: {
         ...coach,
-        praise: korean ? "오프라인 모드에서는 한국어를 영어로 바꿔 드리지 못해요. 아래 문장을 참고해 영어로 말해 보세요." : coach.praise,
+        praise: korean
+          ? `오프라인 모드에서는 한국어를 ${scenario.country === "JP" ? "일본어" : "영어"}로 바꿔 드리지 못해요. 아래 문장을 참고해 말해 보세요.`
+          : coach.praise,
         pressure: Boolean(step.pressure),
         pressureNote: step.pressureNote,
       },
@@ -43,11 +45,13 @@ export async function rehearseTurn(input: RehearseInput): Promise<RehearseReply>
     `User: ${input.message}`,
   ].join("\n");
 
-  const system = `You are running a negotiation rehearsal for a young Korean person living in Australia.
+  const ja = scenario.country === "JP";
+  const lang = ja ? "Japanese" : "English";
+  const system = `You are running a negotiation rehearsal for a young Korean person living in ${ja ? "Japan" : "Australia"}.
 Play ${scenario.counterpart.name}, a ${scenario.counterpart.role} (${scenario.counterpart.style}). Facts: ${scenario.facts}
-Stay in character and speak natural, simple Australian English in at most 2 short sentences. Push back at first; become more cooperative only when the user states a clear request backed by a number or a rule. Never give legal advice as the character. Do not be abusive.
-Also act as a coach for the user. Coach text must be in Korean (해요체), short. "better" is one improved English sentence the user could say next.
-If the user's message is in Korean, put its natural English translation in "translated" and respond to that meaning.
+Stay in character and speak ${ja ? "natural, simple spoken Japanese" : "natural, simple Australian English"} in at most 2 short sentences. Push back at first; become more cooperative only when the user states a clear request backed by a number or a rule. Never give legal advice as the character. Do not be abusive.
+Also act as a coach for the user. Coach text must be in Korean (해요체), short. "better" is one improved ${ja ? "polite Japanese (です・ます調)" : "English"} sentence the user could say next.
+If the user's message is in Korean, put its natural ${lang} translation in "translated" and respond to that meaning.
 Set coach.pressure to true only if YOUR reply as the character contains intimidation or a threat of losing the job/room; then explain in pressureNote (Korean, one sentence) why that matters.
 Output one JSON object only: {"reply": string, "translated": string|null, "coach": {"praise": string, "better": string, "scores": {"clarity": 1-3, "evidence": 1-3, "politeness": 1-3}, "pressure": boolean, "pressureNote": string|null}, "done": boolean}`;
 
@@ -66,7 +70,8 @@ Output one JSON object only: {"reply": string, "translated": string|null, "coach
     const fallback = offlineCoach(input.message, scenario);
     return {
       reply: out.reply,
-      translated: out.translated || undefined,
+      // 모델이 한국어를 그대로 돌려주면 번역으로 보지 않는다.
+      translated: out.translated && !hasHangul(out.translated) ? out.translated : undefined,
       coach: {
         praise: out.coach?.praise || fallback.praise,
         better: out.coach?.better || fallback.better,

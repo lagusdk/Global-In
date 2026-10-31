@@ -103,7 +103,7 @@ export default function Result() {
   const a = c.analysis;
   const counts = { risk: 0, caution: 0, info: 0 };
   a.findings.forEach((f) => counts[f.level]++);
-  const scenarioId = scenarioFor(profile.persona, a);
+  const scenarioId = scenarioFor(profile.persona, a, profile.country ?? "AU");
   const wage = profile.persona !== "worker" && hasWageIssue(a);
   const goRehearse = () => {
     updateCase({ scenarioId, rehearsal: undefined });

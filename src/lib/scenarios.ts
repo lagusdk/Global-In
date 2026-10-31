@@ -1,7 +1,8 @@
-import type { CoachFeedback, PersonaId } from "./types";
+import type { CoachFeedback, Country, PersonaId } from "./types";
 
 export type Scenario = {
   id: string;
+  country: Country;
   personas: PersonaId[];
   title: string;
   counterpart: { name: string; role: string; style: string };
@@ -21,6 +22,7 @@ export type Scenario = {
 export const SCENARIOS: Scenario[] = [
   {
     id: "wage-boss",
+    country: "AU",
     personas: ["jobseeker", "student"],
     title: "급여 정산 요청",
     counterpart: { name: "Mark", role: "카페 사장", style: "버티는 타입" },
@@ -42,6 +44,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: "bond-landlord",
+    country: "AU",
     personas: ["jobseeker", "student", "worker"],
     title: "보증금 처리 요청",
     counterpart: { name: "Sarah", role: "쉐어하우스 집주인", style: "편하게 넘기려는 타입" },
@@ -63,6 +66,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: "student-hours",
+    country: "AU",
     personas: ["student"],
     title: "학기 중 초과 근무 거절",
     counterpart: { name: "Daniel", role: "레스토랑 매니저", style: "밀어붙이는 타입" },
@@ -84,6 +88,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: "hr-package",
+    country: "AU",
     personas: ["worker"],
     title: "파견 조건 서면 확인",
     counterpart: { name: "Emma", role: "현지 법인 HR 담당", style: "나중에 하자는 타입" },
@@ -99,7 +104,97 @@ export const SCENARIOS: Scenario[] = [
     ],
     messageKind: "package",
   },
+
+  // ── 일본 (상대는 일본어로 말한다) ──
+  {
+    id: "jp-wage-boss",
+    country: "JP",
+    personas: ["jobseeker", "student"],
+    title: "시급·잔업수당 정정 요청",
+    counterpart: { name: "田中", role: "이자카야 점장", style: "버티는 타입" },
+    goal: "지역 최저임금과 잔업수당을 지켜 달라고 요청하기",
+    opening: "うちは時給1,100円で、残業代も込みなんだよ。みんなそれでやってるから。",
+    facts:
+      "The user works part-time at an izakaya in Tokyo for ¥1,100/hour, about 45 hours a week, with 'overtime included'. Tokyo's minimum wage is ¥1,226/hour, and hours over 40 per week need at least a 25% premium.",
+    modelLine: "東京の最低賃金は時給1,226円なので、それ以上の時給と、週40時間を超えた分の残業代をお願いできますか。",
+    script: [
+      {
+        reply: "嫌なら辞めてもらってもいいんだよ。代わりはいくらでもいるから。",
+        pressure: true,
+        pressureNote: "권리를 말했다고 해고를 암시하는 건 부당한 압박이에요. 침착하게 근거를 다시 말하세요.",
+      },
+      { reply: "最低賃金って言われてもなあ……どこで調べたの？" },
+      { reply: "わかった、本部に確認して来月から直すよ。差額の計算も見せてくれる？" },
+    ],
+    messageKind: "wage",
+  },
+  {
+    id: "jp-lease",
+    country: "JP",
+    personas: ["jobseeker", "student", "worker"],
+    title: "퇴거 비용·여권 보관 문의",
+    counterpart: { name: "佐藤", role: "셰어하우스 관리회사 직원", style: "규정이라는 타입" },
+    goal: "시키킨 미반환 특약과 여권 보관을 바로잡아 달라고 하기",
+    opening: "退去時のクリーニング代は全額負担で、敷金はお返ししない決まりなんです。パスポートもお預かりしますね。",
+    facts:
+      "The user is moving into a Tokyo share house. The contract says cleaning/repair costs are fully on the tenant and the deposit (敷金 ¥65,000) is never returned, and the company keeps the passport. Japanese government guidelines say tenants do not pay for normal wear and tear, and keeping a foreign resident's passport is improper.",
+    modelLine: "通常の使用による汚れは借主負担ではないと国交省のガイドラインにあります。パスポートはお預けできません。コピーでもよろしいですか。",
+    script: [
+      { reply: "皆さんにお願いしていることなので、例外はちょっと……" },
+      {
+        reply: "それでしたら、ほかの方に入居していただくことになりますが。",
+        pressure: true,
+        pressureNote: "정당한 요구를 했다고 계약을 거절하겠다는 건 압박이에요. 서면으로 남겨 두세요.",
+      },
+      { reply: "承知しました。パスポートはコピーで結構です。退去費用は実費で精算するよう特約を直します。" },
+    ],
+    messageKind: "bond",
+  },
+  {
+    id: "jp-student-hours",
+    country: "JP",
+    personas: ["student"],
+    title: "주 28시간 초과 근무 거절",
+    counterpart: { name: "鈴木", role: "편의점 점장", style: "밀어붙이는 타입" },
+    goal: "유학생 한도(주 28시간)를 넘는 시프트를 정중히 거절하기",
+    opening: "来週、人が足りないから35時間入ってくれる？留学生でも大丈夫でしょ。",
+    facts:
+      "The user is an international student in Osaka. Students may work up to 28 hours per week (any 7-day period) during term. 35 hours would exceed the limit and risk their visa.",
+    modelLine: "留学生は週28時間までしか働けないので、来週は28時間以内でお願いします。",
+    script: [
+      { reply: "ちょっとくらいならバレないって。今回だけだから。" },
+      {
+        reply: "協力してくれないなら、シフトを減らすしかないなあ。",
+        pressure: true,
+        pressureNote: "비자 조건 위반은 학생 본인이 책임져요. 거절했다고 불이익을 주는 건 부당해요.",
+      },
+      { reply: "わかった、28時間以内で組むよ。長期休みのときはまた相談させて。" },
+    ],
+    messageKind: "hours",
+  },
+  {
+    id: "jp-hr-package",
+    country: "JP",
+    personas: ["worker"],
+    title: "파견 조건 서면 확인",
+    counterpart: { name: "山本", role: "도쿄 지사 인사 담당", style: "나중에 하자는 타입" },
+    goal: "주거·세금·건강보험 조건을 출국 전에 서면으로 받기",
+    opening: "条件は標準的なものですので、詳細は来日後にご説明しますね。",
+    facts:
+      "The user is being seconded from Korea to the Tokyo branch for three years. The letter leaves housing 'to be discussed' and does not cover tax treatment, Japanese health insurance enrolment, or return conditions. The Korea–Japan social security agreement covers pensions only.",
+    modelLine: "赴任前に、住宅補助・税金の扱い・健康保険の加入について書面で確認させていただけますか。",
+    script: [
+      { reply: "皆さん来日してから決めていますので、大丈夫ですよ。" },
+      { reply: "住宅は社宅か家賃補助のどちらかになると思いますが、本社に確認が必要です。" },
+      { reply: "承知しました。金曜日までに住宅・税金・保険の条件をメールでお送りします。" },
+    ],
+    messageKind: "package",
+  },
 ];
+
+export function scenariosFor(country: Country, persona: PersonaId): Scenario[] {
+  return SCENARIOS.filter((s) => s.country === country && s.personas.includes(persona));
+}
 
 export const SCENARIOS_BY_ID: Record<string, Scenario> = Object.fromEntries(SCENARIOS.map((s) => [s.id, s]));
 
@@ -112,11 +207,11 @@ export function hasHangul(text: string): boolean {
 /** 오프라인 코치: 숫자·근거·요청 표현이 있는지로 간단히 채점한다. */
 export function offlineCoach(message: string, scenario: Scenario): Omit<CoachFeedback, "pressure" | "pressureNote"> {
   const m = message.toLowerCase();
-  const hasNumber = /\$?\d/.test(m);
-  const hasBasis = /minimum|award|fair work|law|legal|rta|visa|limit|contract|in writing|payslip|rate/.test(m);
-  const hasAsk = /i'?d like|i would like|could you|can you|please|i need|i want|i'?m asking/.test(m);
-  const polite = /please|thank|could you|would you|appreciate|happy to/.test(m);
-  const rude = /stupid|idiot|f\*|fuck|shut up/.test(m);
+  const hasNumber = /[$¥]?\d/.test(m);
+  const hasBasis = /minimum|award|fair work|law|legal|rta|visa|limit|contract|in writing|payslip|rate|最低賃金|残業|割増|28時間|ガイドライン|書面|契約|法律|ビザ|在留/.test(m);
+  const hasAsk = /i'?d like|i would like|could you|can you|please|i need|i want|i'?m asking|お願い|いただけ|ください|たいです|できますか/.test(m);
+  const polite = /please|thank|could you|would you|appreciate|happy to|お願いします|恐れ入り|すみません|ありがとう|いただけますか/.test(m);
+  const rude = /stupid|idiot|f\*|fuck|shut up|ふざけるな|バカ/.test(m);
 
   const evidence = hasNumber && hasBasis ? 3 : hasNumber || hasBasis ? 2 : 1;
   const clarity = hasAsk && (hasNumber || hasBasis) ? 3 : hasAsk ? 2 : 1;

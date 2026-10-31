@@ -12,7 +12,6 @@ import { daysSince, getCase, updateCase, type CaseState } from "@/lib/store";
 
 type Nearby = { count: number; issues: string[]; scope: string } | null | undefined;
 
-const CITY_CODE: Record<string, string> = { brisbane: "BNE", sydney: "SYD", melbourne: "MEL" };
 
 export default function Home() {
   const profile = useProfile();
@@ -23,7 +22,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!profile) return;
-    const industry = PERSONAS[profile.persona].industry;
+    const industry = PERSONAS[profile.persona].industry[profile.country ?? "AU"];
     fetch(`/api/signals?city=${profile.city}&industry=${encodeURIComponent(industry)}`)
       .then((r) => r.json())
       .then((d) => setNearby(d.nearby))
@@ -32,6 +31,7 @@ export default function Home() {
 
   if (!profile) return <main className="phone" />;
   const pack = PERSONAS[profile.persona];
+  const todos = pack.todos[profile.country ?? "AU"];
   const done = new Set(c.doneTodos ?? []);
   const toggle = (id: string) => {
     const next = new Set(done);
@@ -43,7 +43,7 @@ export default function Home() {
   const risks = a?.findings.filter((f) => f.level === "risk").length ?? 0;
   const day = daysSince(profile.arrival);
   const arrived = new Date(`${profile.arrival}T00:00:00`).getTime() <= Date.now();
-  const nextTodo = pack.todos.find((t) => !done.has(t.id));
+  const nextTodo = todos.find((t) => !done.has(t.id));
   const notes: Note[] = [
     ...(a && a.findings.length
       ? [{ id: "doc", level: (risks ? "risk" : "caution") as Level, tag: risks ? `위험 ${risks}` : "주의", title: `${a.docTitle} — 짚어볼 곳 ${a.findings.length}건`, sub: "서명 전에 다시 확인하세요", href: "/result" }]
@@ -51,7 +51,7 @@ export default function Home() {
     ...(nearby
       ? [{ id: "nearby", level: "caution" as Level, tag: "경고", title: `${CITIES[profile.city].label} ${nearby.scope} 제보 ${nearby.count}건`, sub: nearby.issues.join(" · ") }]
       : []),
-    ...(nextTodo ? [{ id: "todo", tag: "할 일", title: nextTodo.text, sub: `첫 30일 할 일 ${pack.todos.length - pack.todos.filter((t) => done.has(t.id)).length}개 남음` }] : []),
+    ...(nextTodo ? [{ id: "todo", tag: "할 일", title: nextTodo.text, sub: `첫 30일 할 일 ${todos.length - todos.filter((t) => done.has(t.id)).length}개 남음` }] : []),
     ...(c.shared ? [{ id: "shared", tag: "반영", title: "내 제보가 다른 사람들의 경고에 반영됐어요" }] : []),
   ];
 
@@ -67,7 +67,7 @@ export default function Home() {
           <div style={{ padding: "14px 18px 10px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span className="mono small muted">
-                ICN → {CITY_CODE[profile.city]}{" "}
+                ICN → {CITIES[profile.city].code}{" "}
                 <Link href="/onboarding" style={{ fontFamily: "var(--sans)", textDecoration: "underline", marginLeft: 6 }}>
                   수정
                 </Link>
@@ -86,7 +86,7 @@ export default function Home() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, padding: "0 18px 14px" }}>
             {[
               ["유형", pack.short],
-              ["비자", pack.visaLabel],
+              ["비자", pack.visaLabel[profile.country ?? "AU"]],
               ["이름", profile.name ?? "—"],
             ].map(([k, v]) => (
               <div key={k} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -98,17 +98,17 @@ export default function Home() {
           <details style={{ borderTop: "1.5px dashed #111", background: "#f4f4f2" }}>
             <summary style={{ padding: "12px 18px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", listStyle: "none" }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>첫 30일 할 일</span>
-              <span style={{ flex: 1, display: "grid", gridTemplateColumns: `repeat(${pack.todos.length}, minmax(0, 1fr))`, gap: 4 }} aria-hidden="true">
-                {pack.todos.map((t) => (
+              <span style={{ flex: 1, display: "grid", gridTemplateColumns: `repeat(${todos.length}, minmax(0, 1fr))`, gap: 4 }} aria-hidden="true">
+                {todos.map((t) => (
                   <span key={t.id} style={{ height: 8, borderRadius: 2, background: done.has(t.id) ? "#111" : "#d3d3cf" }} />
                 ))}
               </span>
               <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>
-                {pack.todos.filter((t) => done.has(t.id)).length}/{pack.todos.length}
+                {todos.filter((t) => done.has(t.id)).length}/{todos.length}
               </span>
             </summary>
             <ul style={{ listStyle: "none", margin: 0, padding: "0 18px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
-              {pack.todos.map((t) => (
+              {todos.map((t) => (
                 <li key={t.id}>
                   <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40, cursor: "pointer", fontSize: 14 }}>
                     <input type="checkbox" checked={done.has(t.id)} onChange={() => toggle(t.id)} style={{ width: 18, height: 18, accentColor: "#111" }} />

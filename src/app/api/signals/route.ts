@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isCity, isPersona, readJson, bad, str } from "@/lib/http";
+import { isCity, isCountry, isPersona, readJson, bad, str } from "@/lib/http";
 import { addReport, nearbyWarning, summarize } from "@/lib/signals";
 
 export const runtime = "nodejs";
@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   const industry = url.searchParams.get("industry");
   if (city) return NextResponse.json({ nearby: nearbyWarning(city, industry ?? "") });
   const persona = url.searchParams.get("persona");
-  return NextResponse.json(summarize(isPersona(persona) ? persona : undefined));
+  const country = url.searchParams.get("country");
+  return NextResponse.json(summarize(isPersona(persona) ? persona : undefined, isCountry(country) ? country : "AU"));
 }
 
 /** POST /api/signals — 사용자가 동의하고 고른 항목만 받는다. 이름·사업장·원문은 받지 않는다. */

@@ -1,0 +1,201 @@
+import type { CityId, Rule } from "../types";
+
+/**
+ * 일본 지식팩.
+ * 최저임금은 도도부현별로 매년 10월 전후에 바뀐다. 아래 값은 2025년 개정분이며,
+ * 배포 전 후생노동성 '지역별 최저임금' 표에서 최신 값을 확인해 갱신할 것.
+ */
+export const JP_PAY = {
+  minHourly: { tokyo: 1226, osaka: 1177, fukuoka: 1057 } as Partial<Record<CityId, number>>,
+  effectiveFrom: "2025-10 (도쿄 10/3 · 오사카 10/16 · 후쿠오카 11/16)",
+  overtimePremium: 0.25,
+  nightPremium: 0.25,
+  legalWeeklyHours: 40,
+  legalDailyHours: 8,
+  studentWeeklyLimit: 28,
+};
+
+export function jpMinHourly(city: CityId): number {
+  return JP_PAY.minHourly[city] ?? JP_PAY.minHourly.tokyo!;
+}
+
+const MHLW_MIN = { name: "후생노동성 · 지역별 최저임금", url: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/minimumichiran/" };
+const LSA = { name: "노동기준법 (e-Gov 법령검색)", url: "https://laws.e-gov.go.jp/law/322AC0000000049" };
+const ESA = { name: "직업안정법 (e-Gov 법령검색)", url: "https://laws.e-gov.go.jp/law/322AC0000000141" };
+const MHLW_CHECK = { name: "후생노동성 · 노동조건 상담 포털", url: "https://www.check-roudou.mhlw.go.jp" };
+const ISA = { name: "출입국재류관리청 · 자격외활동 허가", url: "https://www.moj.go.jp/isa/" };
+const MOFA_WH = { name: "일본 외무성 · 워킹홀리데이 제도", url: "https://www.mofa.go.jp/mofaj/toko/visa/working_h.html" };
+const MLIT = { name: "국토교통성 · 원상회복 가이드라인", url: "https://www.mlit.go.jp" };
+const NENKIN = { name: "일본연금기구 · 사회보험 가입", url: "https://www.nenkin.go.jp" };
+const NTA = { name: "국세청 · 급여 지급명세서", url: "https://www.nta.go.jp" };
+
+export const JP_RULES: Rule[] = [
+  {
+    id: "JP-WAGE-BELOW-MIN",
+    title: "시급이 지역 최저임금보다 낮아요",
+    level: "risk",
+    personas: ["student", "jobseeker", "worker"],
+    docTypes: ["employment_contract", "payslip", "job_ad"],
+    explain: "일본 최저임금은 도도부현마다 달라요. 수습·연수 기간이어도 지역 최저임금보다 낮게 줄 수 없어요.",
+    korea: "한국으로 치면 최저시급보다 적게 주는 알바예요.",
+    action: "급여 계산으로 덜 받는 금액을 확인하고, 근거와 함께 정정을 요청하세요.",
+    kind: "law",
+    source: MHLW_MIN,
+  },
+  {
+    id: "JP-OVERTIME",
+    title: "주 40시간을 넘는데 잔업수당 이야기가 없어요",
+    level: "caution",
+    personas: ["student", "jobseeker", "worker"],
+    docTypes: ["employment_contract", "job_ad"],
+    explain: "하루 8시간·주 40시간을 넘는 근무는 25% 이상, 밤 10시~새벽 5시 근무도 25% 이상 더 받아야 해요(잔업·심야 할증).",
+    korea: "한국의 연장·야간 근로수당과 같은 제도예요.",
+    action: "근무 시간이 40시간을 넘으면 할증이 붙는지 서면으로 확인하세요.",
+    kind: "law",
+    source: LSA,
+  },
+  {
+    id: "JP-MINASHI",
+    title: "'고정 잔업수당(みなし残業)'이 들어 있어요",
+    level: "caution",
+    personas: ["jobseeker", "worker"],
+    docTypes: ["employment_contract", "job_ad"],
+    explain: "월급에 잔업수당이 미리 포함된 구조예요. 몇 시간분·얼마인지 적혀 있어야 하고, 그 시간을 넘긴 잔업은 따로 받아야 해요.",
+    korea: "한국의 포괄임금제와 비슷해요.",
+    action: "포함된 잔업 시간과 금액, 초과분 지급 여부를 확인하세요.",
+    kind: "guide",
+    source: MHLW_CHECK,
+  },
+  {
+    id: "JP-PENALTY",
+    title: "벌금·위약금 조항이 있어요",
+    level: "risk",
+    personas: ["student", "jobseeker", "worker"],
+    docTypes: ["employment_contract", "job_ad"],
+    explain: "지각·실수·중도 퇴사에 미리 벌금이나 위약금을 정해 두는 계약은 노동기준법에서 금지돼 있어요.",
+    korea: "한국에서도 근로계약에 위약금을 미리 정하는 건 금지돼 있어요.",
+    action: "이 조항은 효력이 없을 수 있어요. 서명 전에 삭제를 요청하세요.",
+    kind: "law",
+    source: LSA,
+  },
+  {
+    id: "JP-PASSPORT",
+    title: "여권·재류카드를 맡기라고 해요",
+    level: "risk",
+    personas: ["student", "jobseeker", "worker"],
+    docTypes: ["employment_contract", "job_ad", "lease"],
+    explain: "고용주나 집주인이 여권·재류카드를 보관하는 건 부당해요. 재류카드는 늘 본인이 지니고 있어야 해요.",
+    korea: "한국에서 외국인 노동자 여권을 빼앗는 것과 같은 문제예요.",
+    action: "원본은 맡기지 말고 복사본만 주세요. 강요하면 상담 창구에 알리세요.",
+    kind: "guide",
+    source: MHLW_CHECK,
+  },
+  {
+    id: "JP-DEDUCTION",
+    title: "제복·연수·기숙사비를 월급에서 떼요",
+    level: "caution",
+    personas: ["student", "jobseeker"],
+    docTypes: ["employment_contract", "job_ad", "payslip"],
+    explain: "임금은 전액을 주는 게 원칙이라, 세금·보험 외에 공제하려면 노사 협정이 필요해요. 공제 후 금액이 최저임금 아래로 내려가면 문제예요.",
+    korea: "한국에서 유니폼값·식비를 월급에서 마음대로 떼는 것과 같은 문제예요.",
+    action: "무엇을 얼마나 떼는지, 공제 후 시급이 최저임금 이상인지 확인하세요.",
+    kind: "law",
+    source: LSA,
+  },
+  {
+    id: "JP-SOCIAL-INS",
+    title: "사회보험(건강보험·후생연금)이 없다고 해요",
+    level: "risk",
+    personas: ["jobseeker", "worker"],
+    docTypes: ["employment_contract", "job_ad"],
+    explain: "일정 시간 이상 일하는 직원은 회사 사회보험에 가입해야 해요. 가입하지 않으면 병원비를 전부 내야 할 수 있어요.",
+    korea: "한국의 4대보험 미가입과 비슷해요.",
+    action: "주 근무 시간과 가입 대상인지 확인하고, 아니면 국민건강보험에 직접 가입하세요.",
+    kind: "law",
+    source: NENKIN,
+  },
+  {
+    id: "JP-UNPAID-TRAINING",
+    title: "연수·수습 기간이 무급이에요",
+    level: "risk",
+    personas: ["student", "jobseeker"],
+    docTypes: ["employment_contract", "job_ad"],
+    explain: "연수나 수습도 회사 지시로 일하는 시간이면 임금을 줘야 하고, 최저임금보다 낮을 수 없어요.",
+    korea: "한국에서 '수습이니까 무급'이라고 하는 것과 같은 문제예요.",
+    action: "연수 기간 시급이 얼마인지 서면으로 받으세요.",
+    kind: "law",
+    source: LSA,
+  },
+  {
+    id: "JP-JOB-FEE",
+    title: "일을 소개받는 대가로 돈을 내라고 해요",
+    level: "risk",
+    personas: ["student", "jobseeker"],
+    docTypes: ["job_ad", "employment_contract", "offer_letter"],
+    explain: "직업 소개 사업자가 구직자에게 수수료를 받는 건 원칙적으로 금지돼 있어요. 등록비·보증금을 먼저 요구하면 사기를 의심하세요.",
+    korea: "한국의 '취업 알선비' 사기와 같은 패턴이에요.",
+    action: "돈을 보내지 말고 상담 창구에 확인하세요.",
+    kind: "law",
+    source: ESA,
+  },
+  {
+    id: "JP-ENTERTAINMENT",
+    title: "비자로 일할 수 없는 업종이에요",
+    level: "risk",
+    personas: ["student", "jobseeker"],
+    docTypes: ["job_ad", "employment_contract"],
+    explain: "워킹홀리데이와 유학생 아르바이트는 접객을 하는 술집·유흥업소 같은 풍속영업에서 일할 수 없어요. 걸리면 비자에 문제가 생겨요.",
+    korea: "한국에도 없는 비자 제한이라 '괜찮겠지' 하기 쉬운 부분이에요.",
+    action: "업종이 풍속영업에 해당하는지 확인하고, 애매하면 지원하지 마세요.",
+    kind: "law",
+    source: MOFA_WH,
+  },
+  {
+    id: "JP-STUDENT-28H",
+    title: "유학생 근무 한도(주 28시간)를 넘어요",
+    level: "risk",
+    personas: ["student"],
+    docTypes: ["employment_contract", "job_ad", "offer_letter"],
+    explain: `유학생 아르바이트(자격외활동)는 주 ${JP_PAY.studentWeeklyLimit}시간까지예요. 어느 요일부터 세든 7일 동안 28시간을 넘으면 안 돼요. 학교 장기 방학 중에는 하루 8시간까지 돼요.`,
+    korea: "한국 유학생의 시간제 취업 허가 시간 제한과 비슷해요.",
+    action: "아르바이트를 여러 개 하면 합쳐서 계산하세요. 넘는 근무는 서면으로 거절하세요.",
+    kind: "law",
+    source: ISA,
+  },
+  {
+    id: "JP-PAYSLIP",
+    title: "급여명세서를 안 준대요",
+    level: "risk",
+    personas: ["student", "jobseeker", "worker"],
+    docTypes: ["employment_contract", "payslip"],
+    explain: "급여를 줄 때는 지급명세서를 줘야 해요. 명세서가 없으면 세금·보험이 제대로 처리됐는지 알 수 없어요.",
+    korea: "한국의 임금명세서 교부 의무와 같아요.",
+    action: "매달 명세서를 달라고 요청하고, 근무 시간을 따로 기록해 두세요.",
+    kind: "law",
+    source: NTA,
+  },
+  {
+    id: "JP-RESTORATION",
+    title: "퇴거할 때 청소·수리비를 전부 내라고 해요",
+    level: "caution",
+    personas: ["student", "jobseeker", "worker"],
+    docTypes: ["lease"],
+    explain: "보통으로 살면서 생긴 마모나 시간이 지나 낡은 부분은 세입자가 낼 필요가 없다는 정부 가이드라인이 있어요. 시키킨(敷金)을 전액 돌려주지 않는다는 조항은 따져 볼 수 있어요.",
+    korea: "한국에서 퇴거 때 도배·청소비를 전부 보증금에서 빼는 것과 비슷한 분쟁이에요.",
+    action: "입주할 때 방 사진을 날짜와 함께 남기고, 특약 조항의 금액을 확인하세요.",
+    kind: "guide",
+    source: MLIT,
+  },
+  {
+    id: "JP-REIKIN",
+    title: "레이킨(礼金)은 돌려받지 못하는 돈이에요",
+    level: "info",
+    personas: ["student", "jobseeker", "worker"],
+    docTypes: ["lease"],
+    explain: "레이킨은 집주인에게 주는 사례금이라 퇴거해도 돌려받지 못해요. 시키킨(보증금)과 헷갈리지 마세요.",
+    korea: "한국에는 없는 비용이에요. 돌려받는 보증금과 다른 돈이에요.",
+    action: "초기 비용에서 돌려받는 돈과 못 받는 돈을 나눠서 확인하세요.",
+    kind: "guide",
+    source: MLIT,
+  },
+];

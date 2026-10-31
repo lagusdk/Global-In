@@ -5,14 +5,23 @@ import { useEffect, useState } from "react";
 import { IconChevron, IconCopy, IconExternal } from "@/components/icons";
 import { ModeBadge, Spinner, TopBar, useProfile } from "@/components/ui";
 import { scenarioFor } from "@/lib/caseFlow";
-import { BOND_AUTHORITY, CITIES } from "@/lib/kb/au";
+import { BOND_AUTHORITY } from "@/lib/kb/au";
+import { CITIES, COUNTRIES } from "@/lib/kb/countries";
 import { SCENARIOS_BY_ID } from "@/lib/scenarios";
 import { getCase } from "@/lib/store";
-import type { DraftMessage } from "@/lib/types";
+import type { AuState, Country, DraftMessage } from "@/lib/types";
 
 type Help = { name: string; desc: string; url: string };
 
-function helpFor(kind: string, state: keyof typeof BOND_AUTHORITY): Help[] {
+function helpFor(kind: string, country: Country, region: string): Help[] {
+  if (country === "JP") {
+    const embassyJp: Help = { name: "주일본 대한민국 대사관·총영사관", desc: "재외국민 영사 조력", url: "https://overseas.mofa.go.kr/jp-ko/index.do" };
+    if (kind === "bond") return [{ name: "소비자 핫라인 188", desc: "임대·계약 분쟁 상담 (일본 소비자청)", url: "https://www.caa.go.jp" }, { name: "국토교통성 원상회복 가이드라인", desc: "퇴거 비용 부담 기준", url: "https://www.mlit.go.jp" }, embassyJp];
+    if (kind === "package") return [{ name: "국민연금공단", desc: "한일 사회보장협정 가입증명서 안내", url: "https://www.nps.or.kr" }, { name: "일본 국세청", desc: "거주자·비거주자 판정 안내", url: "https://www.nta.go.jp" }];
+    if (kind === "hours") return [{ name: "출입국재류관리청", desc: "자격외활동 허가·조건 안내", url: "https://www.moj.go.jp/isa/" }, embassyJp];
+    return [{ name: "후생노동성 노동조건 상담", desc: "노동기준감독서·외국인 노동자 상담 다이얼 안내", url: "https://www.check-roudou.mhlw.go.jp" }, embassyJp];
+  }
+  const state = region as AuState;
   const embassy: Help = { name: "대한민국 대사관·총영사관", desc: "재외국민 영사 조력", url: "https://overseas.mofa.go.kr/au-ko/index.do" };
   if (kind === "bond") {
     const a = BOND_AUTHORITY[state];
@@ -25,7 +34,7 @@ function helpFor(kind: string, state: keyof typeof BOND_AUTHORITY): Help[] {
 export default function Send() {
   const profile = useProfile();
   const [draft, setDraft] = useState<DraftMessage | null>(null);
-  const [lang, setLang] = useState<"en" | "ko">("en");
+  const [lang, setLang] = useState<"local" | "ko">("local");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [scenarioId, setScenarioId] = useState<string | null>(null);
@@ -33,7 +42,7 @@ export default function Send() {
   useEffect(() => {
     if (!profile) return;
     const c = getCase();
-    const id = c.scenarioId && SCENARIOS_BY_ID[c.scenarioId] ? c.scenarioId : scenarioFor(profile.persona, c.analysis);
+    const id = c.scenarioId && SCENARIOS_BY_ID[c.scenarioId] ? c.scenarioId : scenarioFor(profile.persona, c.analysis, profile.country ?? "AU");
     setScenarioId(id);
     const kind = SCENARIOS_BY_ID[id].messageKind;
     fetch("/api/message", {
@@ -57,11 +66,13 @@ export default function Send() {
 
   if (!profile || !scenarioId) return <main className="phone" />;
   const scenario = SCENARIOS_BY_ID[scenarioId];
-  const subject = draft ? (lang === "en" ? draft.subjectEn : draft.subjectKo) : "";
-  const body = draft ? (lang === "en" ? draft.bodyEn : draft.bodyKo) : "";
+  const country = CITIES[profile.city].country;
+  const localLabel = country === "JP" ? "日本語" : "EN";
+  const subject = draft ? (lang === "local" ? draft.subjectLocal : draft.subjectKo) : "";
+  const body = draft ? (lang === "local" ? draft.bodyLocal : draft.bodyKo) : "";
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(draft!.bodyEn);
+      await navigator.clipboard.writeText(draft!.bodyLocal);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -77,8 +88,8 @@ export default function Send() {
           back=""
           right={
             <div className="seg" role="group" aria-label="언어">
-              <button aria-pressed={lang === "en"} onClick={() => setLang("en")}>
-                EN
+              <button aria-pressed={lang === "local"} onClick={() => setLang("local")}>
+                {localLabel}
               </button>
               <button aria-pressed={lang === "ko"} onClick={() => setLang("ko")}>
                 한국어
@@ -98,11 +109,11 @@ export default function Send() {
             <span className="faint" style={{ width: 44 }}>제목</span>
             <span style={{ fontWeight: 600 }}>{subject || "…"}</span>
           </div>
-          <div style={{ padding: 14, fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap", minHeight: 180 }} lang={lang === "en" ? "en" : "ko"}>
+          <div style={{ padding: 14, fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap", minHeight: 180 }} lang={lang === "local" ? COUNTRIES[country].lang : "ko"}>
             {draft ? body : error ? null : <Spinner label="메시지를 다듬는 중…" />}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 14px 12px" }}>
-            <span className="small faint">{lang === "ko" ? "한국어는 내용 확인용이에요. 보낼 땐 영어로." : "숫자는 계산 결과 그대로 들어가요"}</span>
+            <span className="small faint">{lang === "ko" ? `한국어는 내용 확인용이에요. 보낼 땐 ${COUNTRIES[country].langLabel}로.` : "숫자는 계산 결과 그대로 들어가요"}</span>
             <ModeBadge mode={draft?.mode} />
           </div>
         </div>
@@ -118,7 +129,7 @@ export default function Send() {
             <span className="h2">해결이 안 되면</span>
             <span className="small faint">{CITIES[profile.city].label} 기준</span>
           </div>
-          {helpFor(scenario.messageKind, CITIES[profile.city].state).map((h) => (
+          {helpFor(scenario.messageKind, country, CITIES[profile.city].region).map((h) => (
             <a key={h.name} href={h.url} target="_blank" rel="noreferrer" className="row">
               <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{h.name}</span>
@@ -141,12 +152,12 @@ export default function Send() {
       </div>
 
       <div className="actions">
-        <a className="btn outline" href={draft ? `mailto:?subject=${encodeURIComponent(draft.subjectEn)}&body=${encodeURIComponent(draft.bodyEn)}` : undefined} aria-disabled={!draft}>
+        <a className="btn outline" href={draft ? `mailto:?subject=${encodeURIComponent(draft.subjectLocal)}&body=${encodeURIComponent(draft.bodyLocal)}` : undefined} aria-disabled={!draft}>
           이메일 앱으로
         </a>
         <button className="btn grow" onClick={copy} disabled={!draft}>
           <IconCopy color="#fff" />
-          {copied ? "복사했어요" : "영어 메시지 복사"}
+          {copied ? "복사했어요" : `${COUNTRIES[country].langLabel} 메시지 복사`}
         </button>
       </div>
     </main>

@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IconChevron } from "@/components/icons";
-import { CITIES } from "@/lib/kb/au";
+import { CITIES, COUNTRIES, citiesOf } from "@/lib/kb/countries";
 import { PERSONA_LIST } from "@/lib/personas";
 import { getProfile, setProfile, updateCase } from "@/lib/store";
-import type { CityId, PersonaId } from "@/lib/types";
+import type { CityId, Country, PersonaId } from "@/lib/types";
 
-const COMING = ["일본", "캐나다", "영국", "뉴질랜드"];
+const COMING = ["캐나다", "영국", "뉴질랜드"];
 
 function today(offsetDays = 0) {
   const d = new Date(Date.now() - offsetDays * 86_400_000);
@@ -19,6 +19,7 @@ function today(offsetDays = 0) {
 export default function Onboarding() {
   const router = useRouter();
   const [persona, setPersona] = useState<PersonaId>("jobseeker");
+  const [country, setCountry] = useState<Country>("AU");
   const [city, setCity] = useState<CityId>("brisbane");
   const [arrival, setArrival] = useState(today(12));
   const [name, setName] = useState("");
@@ -27,6 +28,7 @@ export default function Onboarding() {
     const p = getProfile();
     if (p) {
       setPersona(p.persona);
+      setCountry(p.country ?? "AU");
       setCity(p.city);
       setArrival(p.arrival);
       setName(p.name ?? "");
@@ -35,9 +37,9 @@ export default function Onboarding() {
 
   const start = () => {
     const prev = getProfile();
-    setProfile({ persona, country: "AU", city, arrival, name: name.trim() || undefined });
-    // 대상이 바뀌면 이전 사례 기록은 지운다.
-    if (prev && prev.persona !== persona) updateCase({ analysis: undefined, wage: undefined, scenarioId: undefined, rehearsal: undefined, shared: false, doneTodos: [] });
+    setProfile({ persona, country, city, arrival, name: name.trim() || undefined });
+    // 대상이나 국가가 바뀌면 이전 사례 기록은 지운다.
+    if (prev && (prev.persona !== persona || (prev.country ?? "AU") !== country)) updateCase({ analysis: undefined, wage: undefined, scenarioId: undefined, rehearsal: undefined, shared: false, doneTodos: [] });
     router.push("/home");
   };
 
@@ -96,7 +98,20 @@ export default function Onboarding() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <span className="h2">어디로 가세요?</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, fontWeight: 600, padding: "7px 12px", borderRadius: 6, background: "#111", color: "#fff" }}>호주</span>
+            {(Object.keys(COUNTRIES) as Country[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={country === k}
+                onClick={() => {
+                  setCountry(k);
+                  setCity(citiesOf(k)[0]);
+                }}
+                style={{ fontSize: 13, fontWeight: 600, padding: "7px 14px", borderRadius: 6, cursor: "pointer", minHeight: 36, ...(country === k ? { background: "#111", color: "#fff", border: "1.5px solid #111" } : { background: "#fff", color: "#111", border: "1.5px solid #111" }) }}
+              >
+                {COUNTRIES[k].label}
+              </button>
+            ))}
             {COMING.map((c) => (
               <span key={c} className="faint" style={{ fontSize: 13, padding: "7px 12px", borderRadius: 6, border: "1px solid #dadad6" }}>
                 {c} · 준비 중
@@ -109,7 +124,7 @@ export default function Onboarding() {
           <label className="field">
             도시
             <select className="input" value={city} onChange={(e) => setCity(e.target.value as CityId)}>
-              {(Object.keys(CITIES) as CityId[]).map((c) => (
+              {citiesOf(country).map((c) => (
                 <option key={c} value={c}>
                   {CITIES[c].label}
                 </option>

@@ -1,4 +1,7 @@
-import { AU_PAY, AU_RULES, CITIES, RULES_BY_ID } from "./kb/au";
+import { AU_PAY } from "./kb/au";
+import { COUNTRIES, CITIES } from "./kb/countries";
+import { RULES_BY_ID, rulesFor } from "./kb";
+import { JP_PAY, jpMinHourly } from "./kb/jp";
 import { LlmError, TEXT_MODEL, chat, chatJson, llmEnabled } from "./llm";
 import { DOC_TYPE_LABEL } from "./personas";
 import { detectDocType, runRules, sortFindings } from "./ruleEngine";
@@ -20,6 +23,14 @@ export class AnalyzeError extends Error {
 }
 
 const MAX_TEXT = 12_000;
+
+/** 모델에게 알려 줄 국가별 기준 숫자 */
+function basisLine(cityId: CityId): string {
+  if (CITIES[cityId].country === "JP") {
+    return `${CITIES[cityId].region} 최저임금 시급 ¥${jpMinHourly(cityId)} (${JP_PAY.effectiveFrom}), 주 40시간·하루 8시간 초과 25% 할증, 심야(22~5시) 25% 할증, 유학생 자격외활동 주 28시간.`;
+  }
+  return `국가 최저시급 A$${AU_PAY.nationalMinimumHourly}, 캐주얼 가산 25% (${AU_PAY.effectiveFrom} 기준), 학생비자 학기 중 2주 48시간.`;
+}
 
 /** 서류 사진을 비전 모델로 글자 그대로 옮긴다. */
 export async function transcribeImage(dataUrl: string): Promise<string> {
@@ -57,7 +68,7 @@ type LlmAnalysis = {
 
 function buildPrompt(text: string, input: AnalyzeInput, docType: DocType, ruleHits: Finding[]) {
   const city = CITIES[input.city];
-  const rules = AU_RULES.filter((r) => r.personas.includes(input.persona));
+  const rules = rulesFor(city.country).filter((r) => r.personas.includes(input.persona));
   const ruleList = rules.map((r) => `- ${r.id} [${r.level}] ${r.title}: ${r.explain}`).join("\n");
   const hits = ruleHits.map((f) => `- ${f.ruleId}: ${f.title}${f.quote ? ` ("${f.quote}")` : ""}`).join("\n") || "- (없음)";
 
@@ -70,9 +81,9 @@ function buildPrompt(text: string, input: AnalyzeInput, docType: DocType, ruleHi
 5. quote에는 서류 원문 문장을 그대로 짧게 인용합니다.
 6. 출력은 JSON 객체 하나만 씁니다.`;
 
-  const user = `사용자: ${input.persona === "student" ? "학생(학생비자)" : input.persona === "worker" ? "직장인(회사 파견)" : "워킹홀리데이/해외취업"} · 호주 ${city.label}(${city.state})
+  const user = `사용자: ${input.persona === "student" ? "학생(학생비자)" : input.persona === "worker" ? "직장인(회사 파견)" : "워킹홀리데이/해외취업"} · ${COUNTRIES[city.country].label} ${city.label}(${city.region})
 서류 종류: ${DOC_TYPE_LABEL[docType]}
-기준: 국가 최저시급 A$${AU_PAY.nationalMinimumHourly}, 캐주얼 가산 25% (${AU_PAY.effectiveFrom} 기준), 학생비자 학기 중 2주 48시간.
+기준: ${basisLine(input.city)}
 
 [지식팩 규칙]
 ${ruleList}
@@ -154,12 +165,12 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<AnalysisResu
   if (!text) throw new AnalyzeError("확인할 서류 내용이 없어요.");
 
   const docType = input.docType ?? detectDocType(text);
-  const state = CITIES[input.city].state;
-  const rules = runRules(text, { persona: input.persona, state, docType });
+  const city = CITIES[input.city];
+  const rules = runRules(text, { country: city.country, persona: input.persona, region: city.country === "JP" ? input.city : city.region, docType });
   const base = {
     docType,
     docTitle: input.title ?? DOC_TYPE_LABEL[docType],
-    language: /[가-힣]/.test(text) ? "한국어" : "영어",
+    language: /[가-힣]/.test(text) ? "한국어" : /[ぁ-んァ-ン一-龥]/.test(text) ? "일본어" : "영어",
     okItems: [] as string[],
     text,
   };

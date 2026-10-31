@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { IconSend } from "@/components/icons";
 import { ModeBadge, Spinner, TopBar, useProfile } from "@/components/ui";
 import { scenarioFor } from "@/lib/caseFlow";
-import { SCENARIOS, SCENARIOS_BY_ID } from "@/lib/scenarios";
+import { COUNTRIES } from "@/lib/kb/countries";
+import { SCENARIOS_BY_ID, scenariosFor } from "@/lib/scenarios";
 import { getCase, updateCase } from "@/lib/store";
 import type { ChatTurn, CoachFeedback, RehearseReply } from "@/lib/types";
 
@@ -13,10 +14,10 @@ type Turn = ChatTurn & { coach?: CoachFeedback; translated?: string };
 
 type SpeechRec = { lang: string; interimResults: boolean; onresult: (e: { results: { 0: { transcript: string } }[] }) => void; onend: () => void; start: () => void; stop: () => void };
 
-function speak(text: string) {
+function speak(text: string, lang: string) {
   try {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-AU";
+    u.lang = lang;
     u.rate = 0.95;
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
@@ -35,7 +36,7 @@ function Dots({ n }: { n: number }) {
   );
 }
 
-function CoachCard({ coach, translated }: { coach: CoachFeedback; translated?: string }) {
+function CoachCard({ coach, translated, langLabel }: { coach: CoachFeedback; translated?: string; langLabel: string }) {
   return (
     <div style={{ border: "1.5px dashed #111", borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -54,7 +55,7 @@ function CoachCard({ coach, translated }: { coach: CoachFeedback; translated?: s
       </div>
       {translated && (
         <span className="small muted">
-          영어로 바꾸면: <span style={{ color: "#111" }}>“{translated}”</span>
+          {langLabel}로 바꾸면: <span style={{ color: "#111" }}>“{translated}”</span>
         </span>
       )}
       <span className="body" style={{ fontSize: 13 }}>{coach.praise}</span>
@@ -81,7 +82,8 @@ export default function Rehearse() {
   useEffect(() => {
     if (!profile) return;
     const c = getCase();
-    const id = c.scenarioId && SCENARIOS_BY_ID[c.scenarioId] ? c.scenarioId : scenarioFor(profile.persona, c.analysis);
+    const country = profile.country ?? "AU";
+    const id = c.scenarioId && SCENARIOS_BY_ID[c.scenarioId]?.country === country ? c.scenarioId : scenarioFor(profile.persona, c.analysis, country);
     setScenarioId(id);
     setTurns(c.rehearsal?.turns ?? []);
     const w = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec };
@@ -94,7 +96,8 @@ export default function Rehearse() {
 
   if (!profile || !scenarioId) return <main className="phone" />;
   const scenario = SCENARIOS_BY_ID[scenarioId];
-  const options = SCENARIOS.filter((s) => s.personas.includes(profile.persona));
+  const info = COUNTRIES[scenario.country];
+  const options = scenariosFor(scenario.country, profile.persona);
 
   const choose = (id: string) => {
     setScenarioId(id);
@@ -141,7 +144,7 @@ export default function Rehearse() {
       return;
     }
     const rec = new Rec();
-    rec.lang = "en-AU";
+    rec.lang = info.speech;
     rec.interimResults = false;
     rec.onresult = (e) => setInput((prev) => (prev ? prev + " " : "") + e.results[0][0].transcript);
     rec.onend = () => setListening(false);
@@ -193,10 +196,10 @@ export default function Rehearse() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }} aria-live="polite">
-          <Bubble who="counterpart" text={scenario.opening} />
+          <Bubble who="counterpart" text={scenario.opening} lang={info.lang} speech={info.speech} />
           {turns.length === 0 && (
             <div className="notice">
-              영어로 답해 보세요. 한국어로 써도 {mode === "offline" ? "AI 연결 시 " : ""}영어로 바꿔 드려요.
+              {info.langLabel}로 답해 보세요. 한국어로 써도 {mode === "offline" ? "AI 연결 시 " : ""}{info.langLabel}로 바꿔 드려요.
               <br />
               막히면: “{scenario.modelLine}”
             </div>
@@ -204,12 +207,12 @@ export default function Rehearse() {
           {turns.map((t, i) =>
             t.role === "user" ? (
               <div key={i} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <Bubble who="user" text={t.content} />
-                {t.coach && <CoachCard coach={t.coach} translated={t.translated} />}
+                <Bubble who="user" text={t.content} lang={info.lang} speech={info.speech} />
+                {t.coach && <CoachCard coach={t.coach} translated={t.translated} langLabel={info.langLabel} />}
               </div>
             ) : (
               <div key={i} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <Bubble who="counterpart" text={t.content} />
+                <Bubble who="counterpart" text={t.content} lang={info.lang} speech={info.speech} />
                 {t.coach?.pressure && (
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                     <span className="stamp-risk" style={{ marginTop: 2 }}>압박 감지</span>
@@ -249,7 +252,7 @@ export default function Rehearse() {
           </label>
           <input id="reply" className="input" value={input} onChange={(e) => setInput(e.target.value)} placeholder={`${scenario.counterpart.name}에게 대답하기`} style={{ flex: 1, minWidth: 0 }} autoComplete="off" />
           {canListen && (
-            <button type="button" className="icon-btn" onClick={toggleMic} aria-label={listening ? "듣기 멈추기" : "영어로 말하기"} aria-pressed={listening} style={{ border: "1.5px solid #111", width: 48, height: 48, background: listening ? "#ffe14d" : "#fff" }}>
+            <button type="button" className="icon-btn" onClick={toggleMic} aria-label={listening ? "듣기 멈추기" : `${info.langLabel}로 말하기`} aria-pressed={listening} style={{ border: "1.5px solid #111", width: 48, height: 48, background: listening ? "#ffe14d" : "#fff" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="9" y="3" width="6" height="11" rx="3" />
                 <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
@@ -265,12 +268,12 @@ export default function Rehearse() {
   );
 }
 
-function Bubble({ who, text }: { who: "user" | "counterpart"; text: string }) {
+function Bubble({ who, text, lang, speech }: { who: "user" | "counterpart"; text: string; lang: string; speech: string }) {
   const mine = who === "user";
   return (
     <div style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "84%", display: "flex", alignItems: "flex-end", gap: 6, flexDirection: mine ? "row-reverse" : "row" }}>
       <div
-        lang={mine ? undefined : "en"}
+        lang={mine ? undefined : lang}
         style={{
           background: mine ? "#111" : "#f4f4f2",
           color: mine ? "#fff" : "#111",
@@ -283,7 +286,7 @@ function Bubble({ who, text }: { who: "user" | "counterpart"; text: string }) {
         {text}
       </div>
       {!mine && (
-        <button className="icon-btn" onClick={() => speak(text)} aria-label="소리로 듣기" style={{ width: 32, height: 32 }}>
+        <button className="icon-btn" onClick={() => speak(text, speech)} aria-label="소리로 듣기" style={{ width: 32, height: 32 }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a4a48" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 10v4h4l5 4V6L8 10z" />
             <path d="M16 9a4 4 0 0 1 0 6" />

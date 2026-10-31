@@ -1,4 +1,4 @@
-import type { PersonaId, Report } from "./types";
+import type { Country, PersonaId, Report } from "./types";
 
 /**
  * 위험 신호 집계. 실제 서비스에서는 사용자가 '익명으로 알리기'를 누른 제보만 DB에 쌓인다.
@@ -7,23 +7,36 @@ import type { PersonaId, Report } from "./types";
 
 export const K_THRESHOLD = 5;
 
-export type MapCity = { id: string; label: string; x: number; y: number; labelSide: "left" | "right" | "top" };
+export type MapCity = { id: string; label: string; country: Country; x: number; y: number; labelSide: "left" | "right" | "top" };
 
 /** 지도 SVG(600×500, 경위도 → 14px/도 투영) 위 도시 좌표 */
 export const MAP_CITIES: MapCity[] = [
-  { id: "darwin", label: "다윈", x: 263, y: 60, labelSide: "right" },
-  { id: "broome", label: "브룸", x: 152, y: 130, labelSide: "right" },
-  { id: "cairns", label: "케언즈", x: 462, y: 118, labelSide: "left" },
-  { id: "alice", label: "앨리스스프링스", x: 307, y: 206, labelSide: "right" },
-  { id: "bundaberg", label: "번다버그", x: 550, y: 226, labelSide: "left" },
-  { id: "brisbane", label: "브리즈번", x: 563, y: 264, labelSide: "left" },
-  { id: "perth", label: "퍼스", x: 64, y: 322, labelSide: "right" },
-  { id: "adelaide", label: "애들레이드", x: 372, y: 354, labelSide: "left" },
-  { id: "mildura", label: "밀두라", x: 423, y: 352, labelSide: "top" },
-  { id: "sydney", label: "시드니", x: 538, y: 346, labelSide: "left" },
-  { id: "melbourne", label: "멜버른", x: 460, y: 400, labelSide: "left" },
-  { id: "hobart", label: "호바트", x: 490, y: 468, labelSide: "right" },
+  { id: "darwin", label: "다윈", country: "AU", x: 263, y: 60, labelSide: "right" },
+  { id: "broome", label: "브룸", country: "AU", x: 152, y: 130, labelSide: "right" },
+  { id: "cairns", label: "케언즈", country: "AU", x: 462, y: 118, labelSide: "left" },
+  { id: "alice", label: "앨리스스프링스", country: "AU", x: 307, y: 206, labelSide: "right" },
+  { id: "bundaberg", label: "번다버그", country: "AU", x: 550, y: 226, labelSide: "left" },
+  { id: "brisbane", label: "브리즈번", country: "AU", x: 563, y: 264, labelSide: "left" },
+  { id: "perth", label: "퍼스", country: "AU", x: 64, y: 322, labelSide: "right" },
+  { id: "adelaide", label: "애들레이드", country: "AU", x: 372, y: 354, labelSide: "left" },
+  { id: "mildura", label: "밀두라", country: "AU", x: 423, y: 352, labelSide: "top" },
+  { id: "sydney", label: "시드니", country: "AU", x: 538, y: 346, labelSide: "left" },
+  { id: "melbourne", label: "멜버른", country: "AU", x: 460, y: 400, labelSide: "left" },
+  { id: "hobart", label: "호바트", country: "AU", x: 490, y: 468, labelSide: "right" },
+  // 일본 지도 SVG(600×520, x=(경도-128)*30+20, y=(46-위도)*30+10). 오키나와는 오른쪽 아래 상자 안에 따로 그린다.
+  { id: "sapporo", label: "삿포로", country: "JP", x: 420, y: 98, labelSide: "right" },
+  { id: "niseko", label: "니세코", country: "JP", x: 400, y: 106, labelSide: "left" },
+  { id: "sendai", label: "센다이", country: "JP", x: 406, y: 242, labelSide: "right" },
+  { id: "tokyo", label: "도쿄", country: "JP", x: 371, y: 319, labelSide: "right" },
+  { id: "nagoya", label: "나고야", country: "JP", x: 287, y: 336, labelSide: "top" },
+  { id: "kyoto", label: "교토", country: "JP", x: 254, y: 336, labelSide: "top" },
+  { id: "osaka", label: "오사카", country: "JP", x: 244, y: 352, labelSide: "left" },
+  { id: "hiroshima", label: "히로시마", country: "JP", x: 155, y: 357, labelSide: "top" },
+  { id: "fukuoka", label: "후쿠오카", country: "JP", x: 92, y: 382, labelSide: "left" },
+  { id: "naha", label: "오키나와", country: "JP", x: 524, y: 466, labelSide: "left" },
 ];
+
+const COUNTRY_OF: Record<string, Country> = Object.fromEntries(MAP_CITIES.map((c) => [c.id, c.country]));
 
 export type SeedRow = { city: string; industry: string; issue: string; persona: PersonaId; count: number; prev: number };
 
@@ -52,6 +65,26 @@ export const SEED: SeedRow[] = [
   { city: "broome", industry: "관광·숙박", issue: "현금 지급 · 명세서 없음", persona: "jobseeker", count: 5, prev: 5 },
   { city: "hobart", industry: "농장", issue: "숙소비 과다 공제", persona: "jobseeker", count: 6, prev: 6 },
   { city: "alice", industry: "관광·숙박", issue: "무급 트라이얼", persona: "jobseeker", count: 3, prev: 3 },
+  // ── 일본 (샘플) ──
+  { city: "tokyo", industry: "음식점", issue: "최저임금 미달", persona: "jobseeker", count: 16, prev: 13 },
+  { city: "tokyo", industry: "음식점", issue: "잔업수당 미지급", persona: "jobseeker", count: 14, prev: 12 },
+  { city: "tokyo", industry: "음식점", issue: "벌금·위약금 조항", persona: "jobseeker", count: 6, prev: 5 },
+  { city: "tokyo", industry: "편의점", issue: "주 28시간 초과 유도", persona: "student", count: 12, prev: 10 },
+  { city: "tokyo", industry: "셰어하우스", issue: "퇴거 비용 과다 청구", persona: "student", count: 9, prev: 8 },
+  { city: "tokyo", industry: "사무·전문직", issue: "파견 조건 '별도 협의'", persona: "worker", count: 6, prev: 5 },
+  { city: "osaka", industry: "음식점", issue: "잔업수당 미지급", persona: "jobseeker", count: 10, prev: 9 },
+  { city: "osaka", industry: "편의점", issue: "주 28시간 초과 유도", persona: "student", count: 8, prev: 6 },
+  { city: "osaka", industry: "사무·전문직", issue: "파견 조건 '별도 협의'", persona: "worker", count: 5, prev: 5 },
+  { city: "kyoto", industry: "숙박", issue: "무급 연수", persona: "jobseeker", count: 8, prev: 7 },
+  { city: "niseko", industry: "스키 리조트", issue: "제복·기숙사비 과다 공제", persona: "jobseeker", count: 15, prev: 8 },
+  { city: "niseko", industry: "스키 리조트", issue: "비자 금지 업종 권유", persona: "jobseeker", count: 6, prev: 3 },
+  { city: "naha", industry: "리조트", issue: "제복·기숙사비 과다 공제", persona: "jobseeker", count: 7, prev: 6 },
+  { city: "fukuoka", industry: "음식점", issue: "최저임금 미달", persona: "jobseeker", count: 6, prev: 6 },
+  { city: "fukuoka", industry: "편의점", issue: "주 28시간 초과 유도", persona: "student", count: 5, prev: 4 },
+  { city: "sapporo", industry: "음식점", issue: "잔업수당 미지급", persona: "jobseeker", count: 5, prev: 5 },
+  { city: "nagoya", industry: "제조", issue: "여권·재류카드 보관 요구", persona: "jobseeker", count: 5, prev: 4 },
+  { city: "sendai", industry: "음식점", issue: "최저임금 미달", persona: "jobseeker", count: 3, prev: 3 },
+  { city: "hiroshima", industry: "음식점", issue: "잔업수당 미지급", persona: "jobseeker", count: 4, prev: 4 },
 ];
 
 type Store = { reports: Report[] };
@@ -65,7 +98,7 @@ export function reportCount() {
   return store.reports.length;
 }
 
-export type CitySignal = { id: string; label: string; x: number; y: number; labelSide: MapCity["labelSide"]; count: number; hidden: boolean };
+export type CitySignal = { id: string; label: string; country: Country; x: number; y: number; labelSide: MapCity["labelSide"]; count: number; hidden: boolean };
 export type IssueSignal = { issue: string; count: number };
 export type PatternRow = { city: string; cityLabel: string; industry: string; issue: string; count: number; change: number };
 
@@ -78,21 +111,20 @@ export type SignalSummary = {
   liveReports: number;
 };
 
-function rows(persona?: PersonaId): SeedRow[] {
+function rows(persona?: PersonaId, country?: Country): SeedRow[] {
   const live: SeedRow[] = store.reports.flatMap((r) =>
     r.issues.map((issue) => ({ city: r.city, industry: r.industry ?? "기타", issue, persona: r.persona ?? "jobseeker", count: 1, prev: 0 })),
   );
-  const all = [...SEED, ...live];
-  return persona ? all.filter((r) => r.persona === persona) : all;
+  return [...SEED, ...live].filter((r) => (!persona || r.persona === persona) && (!country || COUNTRY_OF[r.city] === country));
 }
 
-export function summarize(persona?: PersonaId): SignalSummary {
-  const data = rows(persona);
+export function summarize(persona?: PersonaId, country: Country = "AU"): SignalSummary {
+  const data = rows(persona, country);
   const total = data.reduce((s, r) => s + r.count, 0);
 
   const cityTotals = new Map<string, number>();
   for (const r of data) cityTotals.set(r.city, (cityTotals.get(r.city) ?? 0) + r.count);
-  const cities: CitySignal[] = MAP_CITIES.map((c) => {
+  const cities: CitySignal[] = MAP_CITIES.filter((c) => c.country === country).map((c) => {
     const count = cityTotals.get(c.id) ?? 0;
     return { ...c, count, hidden: count < K_THRESHOLD };
   });
@@ -119,7 +151,7 @@ export function summarize(persona?: PersonaId): SignalSummary {
     .slice(0, 6);
 
   const byPersona = { student: 0, jobseeker: 0, worker: 0 } as Record<PersonaId, number>;
-  for (const r of rows()) byPersona[r.persona] += r.count;
+  for (const r of rows(undefined, country)) byPersona[r.persona] += r.count;
 
   return { total, cities, topIssues, patterns, byPersona, liveReports: store.reports.length };
 }

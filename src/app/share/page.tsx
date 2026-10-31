@@ -23,8 +23,8 @@ export default function Share() {
     const pack = PERSONAS[profile.persona];
     setItems([
       { key: "city", label: "지역", value: CITIES[profile.city].label, on: true },
-      { key: "industry", label: "업종", value: pack.industry, on: true },
-      { key: "visa", label: "비자 종류", value: pack.visaLabel, on: false },
+      { key: "industry", label: "업종", value: pack.industry[profile.country ?? "AU"], on: true },
+      { key: "visa", label: "비자 종류", value: pack.visaLabel[profile.country ?? "AU"], on: false },
     ]);
     const found = [...new Set((c.analysis?.findings ?? []).map((f) => (f.ruleId ? ISSUE_LABEL[f.ruleId] : undefined)).filter((x): x is string => Boolean(x)))];
     setIssues(found.map((label) => ({ label, on: true })));

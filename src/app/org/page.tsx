@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AusMap } from "@/components/AusMap";
+import { CountryMap } from "@/components/CountryMap";
 import { IconLock } from "@/components/icons";
 import { Spinner } from "@/components/ui";
 import type { Brief, OrgId } from "@/lib/brief";
-import { CITIES } from "@/lib/kb/au";
+import { CITIES, COUNTRIES, citiesOf } from "@/lib/kb/countries";
 import { ORG_TYPES, clearOrgSession, getOrgSession, type OrgSession } from "@/lib/orgSession";
 import type { SignalSummary } from "@/lib/signals";
-import type { CityId } from "@/lib/types";
+import type { CityId, Country } from "@/lib/types";
 
 type Members = { rows: { city: CityId; label: string; count: number }[]; total: number; departing: number };
 
@@ -18,14 +18,14 @@ type OrgView = {
   label: string;
   persona?: "student" | "jobseeker" | "worker";
   members: { title: string; unit: string } | null;
-  kpis: (s: SignalSummary, m: Members) => { label: string; value: string; unit?: string; red?: boolean }[];
+  kpis: (s: SignalSummary, m: Members, place: string) => { label: string; value: string; unit?: string; red?: boolean }[];
   actions: { title: string; desc: string; brief?: boolean }[];
 };
 
 /** 로그인한 기관이면 입력한 인원을, 다른 기관 화면을 둘러볼 때는 예시 인원을 쓴다. */
-function membersFor(org: OrgId, session: OrgSession | null): Members {
+function membersFor(org: OrgId, session: OrgSession | null, country: Country): Members {
   const src = session?.org === org ? session : ORG_TYPES.find((t) => t.id === org)!.example;
-  const rows = (Object.keys(CITIES) as CityId[]).map((c) => ({ city: c, label: CITIES[c].label, count: src.members[c] ?? 0 })).filter((r) => r.count > 0);
+  const rows = citiesOf(country).map((c: CityId) => ({ city: c, label: CITIES[c].label, count: src.members[c] ?? 0 })).filter((r) => r.count > 0);
   return { rows, total: rows.reduce((s, r) => s + r.count, 0), departing: src.departing };
 }
 
@@ -34,8 +34,8 @@ const VIEWS: Record<OrgId, OrgView> = {
     label: "대학 국제처",
     persona: "student",
     members: { title: "우리 학생이 있는 도시", unit: "학생" },
-    kpis: (s, m) => [
-      { label: "우리 학교 호주 체류 학생", value: String(m.total), unit: "명" },
+    kpis: (s, m, place) => [
+      { label: `우리 학교 ${place} 체류 학생`, value: String(m.total), unit: "명" },
       { label: "학생 대상 위험 신호", value: String(s.total), unit: "건", red: true },
       { label: "출국 예정 (다음 분기)", value: String(m.departing), unit: "명" },
       { label: "가장 많은 어려움", value: s.topIssues[0]?.issue ?? "—" },
@@ -49,7 +49,7 @@ const VIEWS: Record<OrgId, OrgView> = {
     label: "청년·고용 지원기관",
     persona: "jobseeker",
     members: null,
-    kpis: (s, m) => [
+    kpis: (s, m, place) => [
       { label: "워홀·구직 청년 제보", value: String(s.total), unit: "건", red: true },
       { label: "출국 준비 상담 청년", value: String(m.departing), unit: "명" },
       { label: "가장 많은 어려움", value: s.topIssues[0]?.issue ?? "—" },
@@ -64,8 +64,8 @@ const VIEWS: Record<OrgId, OrgView> = {
     label: "기업 HR",
     persona: "worker",
     members: { title: "우리 회사 파견자", unit: "직원" },
-    kpis: (s, m) => [
-      { label: "호주 파견 중", value: String(m.total), unit: "명" },
+    kpis: (s, m, place) => [
+      { label: `${place} 파견 중`, value: String(m.total), unit: "명" },
       { label: "출국 예정 (다음 분기)", value: String(m.departing), unit: "명" },
       { label: "파견자 관련 신호", value: String(s.total), unit: "건", red: true },
       { label: "가장 많은 문제", value: s.topIssues[0]?.issue ?? "—" },
@@ -95,11 +95,12 @@ export default function Org() {
   const router = useRouter();
   const [session, setSession] = useState<OrgSession | null>(null);
   const [org, setOrg] = useState<OrgId>("uni");
+  const [country, setCountry] = useState<Country>("AU");
   const [summary, setSummary] = useState<SignalSummary | null>(null);
   const [brief, setBrief] = useState<Brief | null>(null);
   const [briefBusy, setBriefBusy] = useState(false);
   const view = VIEWS[org];
-  const members = membersFor(org, session);
+  const members = membersFor(org, session, country);
 
   useEffect(() => {
     const s = getOrgSession();
@@ -109,6 +110,7 @@ export default function Org() {
     }
     setSession(s);
     setOrg(s.org);
+    setCountry(s.country ?? "AU");
   }, [router]);
 
   const logout = () => {
@@ -120,18 +122,18 @@ export default function Org() {
     if (!session) return;
     setSummary(null);
     setBrief(null);
-    fetch(`/api/signals${view.persona ? `?persona=${view.persona}` : ""}`)
+    fetch(`/api/signals?country=${country}${view.persona ? `&persona=${view.persona}` : ""}`)
       .then((r) => r.json())
       .then(setSummary)
       .catch(() => setSummary(null));
-  }, [org, view.persona, session]);
+  }, [org, view.persona, session, country]);
 
   if (!session) return <main className="org" />;
 
   const makeBrief = async () => {
     setBriefBusy(true);
     try {
-      const res = await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org }) });
+      const res = await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org, country }) });
       setBrief(await res.json());
     } finally {
       setBriefBusy(false);
@@ -152,8 +154,15 @@ export default function Org() {
               <span className="tag-caution">샘플 데이터 포함</span>
             </div>
             <h1 className="display" style={{ fontSize: 34 }}>
-              호주 · 최근 30일
+              {COUNTRIES[country].label} · 최근 30일
             </h1>
+            <div className="seg" role="group" aria-label="국가" style={{ alignSelf: "flex-start" }}>
+              {(Object.keys(COUNTRIES) as Country[]).map((k) => (
+                <button key={k} aria-pressed={country === k} onClick={() => setCountry(k)} style={{ height: 34, fontSize: 14 }}>
+                  {COUNTRIES[k].label}
+                </button>
+              ))}
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14 }}>
@@ -183,7 +192,7 @@ export default function Org() {
         ) : (
           <>
             <div className="kpis">
-              {view.kpis(summary, members).map((k) => (
+              {view.kpis(summary, members, COUNTRIES[country].label).map((k) => (
                 <div key={k.label}>
                   <span style={{ fontSize: 13 }} className="muted">
                     {k.label}
@@ -223,7 +232,7 @@ export default function Org() {
                     )}
                   </div>
                 </div>
-                <AusMap cities={summary.cities} highlight={view.members ? members.rows.map((r) => r.city) : undefined} />
+                <CountryMap country={country} cities={summary.cities} highlight={view.members ? members.rows.map((r) => r.city) : undefined} />
                 <span className="small muted">원 크기 = 제보 건수 · 5건 미만인 지역은 개인 식별을 막기 위해 표시하지 않아요</span>
               </section>
 

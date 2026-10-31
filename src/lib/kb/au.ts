@@ -1,4 +1,6 @@
-import type { AuState, CityId, Rule } from "../types";
+import type { AuState, Rule } from "../types";
+
+export { CITIES } from "./countries";
 
 /**
  * 호주 지식팩.
@@ -11,12 +13,6 @@ export const AU_PAY = {
   superGuaranteeRate: 0.12,
   effectiveFrom: "2025-07-01",
   studentFortnightLimit: 48,
-};
-
-export const CITIES: Record<CityId, { label: string; state: AuState }> = {
-  brisbane: { label: "브리즈번", state: "QLD" },
-  sydney: { label: "시드니", state: "NSW" },
-  melbourne: { label: "멜버른", state: "VIC" },
 };
 
 export const BOND_AUTHORITY: Record<AuState, { name: string; url: string; within: string }> = {
@@ -238,8 +234,6 @@ export const AU_RULES: Rule[] = [
     source: CHECKLIST,
   },
 ];
-
-export const RULES_BY_ID: Record<string, Rule> = Object.fromEntries(AU_RULES.map((r) => [r.id, r]));
 
 export function bondSourceFor(state: AuState) {
   const a = BOND_AUTHORITY[state];

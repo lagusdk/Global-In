@@ -1,12 +1,14 @@
 export type PersonaId = "student" | "jobseeker" | "worker";
 
-export type CityId = "brisbane" | "sydney" | "melbourne";
+export type Country = "AU" | "JP";
+
+export type CityId = "brisbane" | "sydney" | "melbourne" | "tokyo" | "osaka" | "fukuoka";
 
 export type AuState = "QLD" | "NSW" | "VIC";
 
 export type Profile = {
   persona: PersonaId;
-  country: "AU";
+  country: Country;
   city: CityId;
   arrival: string; // YYYY-MM-DD
   name?: string;
@@ -100,10 +102,12 @@ export type RehearseReply = {
   done?: boolean;
 };
 
+/** 현지어(영어·일본어) 메시지와 확인용 한국어 번역 */
 export type DraftMessage = {
-  subjectEn: string;
+  lang: "en" | "ja";
+  subjectLocal: string;
   subjectKo: string;
-  bodyEn: string;
+  bodyLocal: string;
   bodyKo: string;
   mode: "ai" | "offline";
 };

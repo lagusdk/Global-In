@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { CITIES } from "./kb/au";
-import type { CityId, PersonaId } from "./types";
+import type { CityId, Country, PersonaId } from "./types";
 
 export function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -17,4 +17,5 @@ export async function readJson(req: Request): Promise<Record<string, unknown> | 
 
 export const isPersona = (v: unknown): v is PersonaId => v === "student" || v === "jobseeker" || v === "worker";
 export const isCity = (v: unknown): v is CityId => typeof v === "string" && v in CITIES;
+export const isCountry = (v: unknown): v is Country => v === "AU" || v === "JP";
 export const str = (v: unknown, max = 20_000): string | undefined => (typeof v === "string" && v.length <= max ? v : undefined);

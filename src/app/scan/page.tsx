@@ -32,7 +32,7 @@ export default function Scan() {
   }, []);
 
   if (!profile) return <main className="phone" />;
-  const samples = samplesFor(profile.persona);
+  const samples = samplesFor(profile.persona, profile.country ?? "AU");
 
   const analyze = async (payload: { text?: string; imageDataUrl?: string; docType?: DocType; title?: string }) => {
     setBusy(true);
