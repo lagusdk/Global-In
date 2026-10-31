@@ -28,5 +28,7 @@ export async function POST(req: Request) {
   }
 
   const findings = Array.isArray(body?.findings) ? (body.findings as unknown[]).filter((f): f is string => typeof f === "string").slice(0, 8) : [];
-  return NextResponse.json(await draftMessage({ scenarioId, city: body.city, name: str(body?.name, 40), wage, findings }));
+  const ruleIds = Array.isArray(body?.ruleIds) ? (body.ruleIds as unknown[]).filter((f): f is string => typeof f === "string").slice(0, 10) : [];
+  const stage = body?.stage === "before" || body?.stage === "harmed" ? body.stage : "working";
+  return NextResponse.json(await draftMessage({ scenarioId, city: body.city, name: str(body?.name, 40), wage, findings, ruleIds, stage, basisFrom: str(body?.basisFrom, 20) }));
 }

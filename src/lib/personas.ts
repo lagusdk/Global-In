@@ -1,4 +1,4 @@
-import type { Country, DocType, PersonaId } from "./types";
+import type { Country, DocType, PersonaId, VisaId } from "./types";
 
 export type Todo = { id: string; text: string };
 
@@ -108,3 +108,23 @@ export const DOC_TYPE_LABEL: Record<DocType, string> = {
   job_ad: "구인 광고",
   other: "기타 서류",
 };
+
+/** 체류 목적과 별도로 묻는 비자. 목적만으로 비자를 단정하지 않는다. */
+export const VISAS: Record<Country, { id: VisaId; label: string }[]> = {
+  AU: [
+    { id: "whv", label: "워킹홀리데이 (417·462)" },
+    { id: "student", label: "학생비자 (500)" },
+    { id: "work", label: "취업·파견 비자 (482 등)" },
+    { id: "none", label: "아직 없음 · 준비 중" },
+  ],
+  JP: [
+    { id: "whv", label: "워킹홀리데이" },
+    { id: "student", label: "유학" },
+    { id: "work", label: "취업·기업내전근" },
+    { id: "none", label: "아직 없음 · 준비 중" },
+  ],
+};
+
+export function visaLabel(country: Country, visa?: VisaId): string {
+  return VISAS[country].find((v) => v.id === visa)?.label.replace(/ \(.*\)$/, "") ?? "미선택";
+}

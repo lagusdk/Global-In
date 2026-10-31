@@ -38,7 +38,7 @@ export const MAP_CITIES: MapCity[] = [
 
 const COUNTRY_OF: Record<string, Country> = Object.fromEntries(MAP_CITIES.map((c) => [c.id, c.country]));
 
-export type SeedRow = { city: string; industry: string; issue: string; persona: PersonaId; count: number; prev: number };
+export type SeedRow = { city: string; industry: string; issue: string; persona: PersonaId; count: number; prev: number; /** 사용자가 실제로 보낸 제보 */ live?: boolean };
 
 export const SEED: SeedRow[] = [
   { city: "bundaberg", industry: "농장", issue: "성과급 단가 최저보장 미달", persona: "jobseeker", count: 21, prev: 14 },
@@ -113,7 +113,7 @@ export type SignalSummary = {
 
 function rows(persona?: PersonaId, country?: Country): SeedRow[] {
   const live: SeedRow[] = store.reports.flatMap((r) =>
-    r.issues.map((issue) => ({ city: r.city, industry: r.industry ?? "기타", issue, persona: r.persona ?? "jobseeker", count: 1, prev: 0 })),
+    r.issues.map((issue) => ({ city: r.city, industry: r.industry ?? "기타", issue, persona: r.persona ?? "jobseeker", count: 1, prev: 0, live: true })),
   );
   return [...SEED, ...live].filter((r) => (!persona || r.persona === persona) && (!country || COUNTRY_OF[r.city] === country));
 }
@@ -157,11 +157,12 @@ export function summarize(persona?: PersonaId, country: Country = "AU"): SignalS
 }
 
 /** 홈의 '내 주변 경고' 카드: 같은 도시·업종의 제보 수. 업종 제보가 적으면 도시 전체로 넓힌다. */
-export function nearbyWarning(city: string, industry: string): { count: number; issues: string[]; scope: string } | null {
+export function nearbyWarning(city: string, industry: string): { count: number; sample: number; live: number; issues: string[]; scope: string } | null {
   const pick = (data: SeedRow[], scope: string) => {
     const count = data.reduce((s, r) => s + r.count, 0);
     if (count < K_THRESHOLD) return null;
-    return { count, scope, issues: [...new Set([...data].sort((a, b) => b.count - a.count).map((r) => r.issue))].slice(0, 2) };
+    const live = data.filter((r) => r.live).reduce((s, r) => s + r.count, 0);
+    return { count, sample: count - live, live, scope, issues: [...new Set([...data].sort((a, b) => b.count - a.count).map((r) => r.issue))].slice(0, 2) };
   };
   const inCity = rows().filter((r) => r.city === city);
   return pick(inCity.filter((r) => r.industry === industry), industry) ?? pick(inCity, "전체 업종");

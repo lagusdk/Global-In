@@ -42,7 +42,7 @@ export const AU_RULES: Rule[] = [
     docTypes: ["employment_contract", "payslip", "job_ad"],
     explain: `호주 국가 최저시급은 A$${AU_PAY.nationalMinimumHourly}이고, 캐주얼은 유급휴가가 없는 대신 25%를 더 받아야 해요. 업종별 어워드(Award)에 따라 이보다 높을 수 있어요.`,
     korea: "한국으로 치면 최저시급보다 적게 주는 알바예요.",
-    action: "급여 계산으로 덜 받은 금액을 확인하고, 근거와 함께 정산을 요청하세요.",
+    action: "서명 전이라면 시급을 기준 이상으로 고쳐 달라고 요청하고, 이미 일했다면 급여 계산으로 차액을 확인해 정산을 요청하세요.",
     kind: "law",
     source: FWO_MIN_WAGE,
   },

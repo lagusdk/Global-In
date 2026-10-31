@@ -224,3 +224,36 @@ export function offlineCoach(message: string, scenario: Scenario): Omit<CoachFee
 
   return { praise, better: scenario.modelLine, scores: { clarity, evidence, politeness } };
 }
+
+export type WageContext = { expectedHourly: number; paidHourly?: number; hours: number; shortfall: number };
+
+/**
+ * 급여 계산에서 확정한 숫자와 지금 상황(서명 전·일하는 중)을 리허설에 이어 준다.
+ * 계산 기준을 바꾸면 모범 문장과 상대역이 아는 사실도 함께 바뀐다.
+ */
+export function personalizeScenario(s: Scenario, wage?: WageContext, stage?: "before" | "working" | "harmed"): Scenario {
+  if (s.messageKind !== "wage" || !wage) return s;
+  const before = stage === "before";
+  if (s.country === "JP") {
+    const exp = Math.round(wage.expectedHourly).toLocaleString("ja-JP");
+    const short = Math.round(wage.shortfall).toLocaleString("ja-JP");
+    return {
+      ...s,
+      goal: before ? "서명 전에 시급을 지역 최저임금 이상으로 고쳐 달라고 하기" : s.goal,
+      facts: `The user ${before ? "has not signed yet; the offer is" : "works"} part-time for ¥${wage.paidHourly ?? "?"}/hour, about ${wage.hours} hours a week. The applicable minimum wage the user calculated is ¥${exp}/hour, and hours over 40 per week need a 25% premium.${before ? "" : ` The weekly shortfall is about ¥${short}.`}`,
+      modelLine: before
+        ? `署名の前に、時給を最低賃金の${exp}円以上にしていただけますか。`
+        : `最低賃金は時給${exp}円なので、差額の${short}円と週40時間を超えた分の残業代をお願いできますか。`,
+    };
+  }
+  const exp = wage.expectedHourly.toFixed(2);
+  const short = wage.shortfall.toFixed(2);
+  return {
+    ...s,
+    goal: before ? "서명 전에 시급을 최저 기준 이상으로 고쳐 달라고 하기" : s.goal,
+    facts: `The user ${before ? "has not signed yet; the offer is" : "is paid"} $${wage.paidHourly ?? "?"}/hour for about ${wage.hours} hours a week. The minimum rate the user calculated for this role is $${exp}/hour.${before ? "" : ` The weekly shortfall is about $${short}.`}`,
+    modelLine: before
+      ? `Before I sign, could the rate be at least $${exp} an hour, with a payslip each pay period?`
+      : `I'd like to be paid at least $${exp} an hour, and the $${short} difference for last week.`,
+  };
+}

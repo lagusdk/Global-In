@@ -7,10 +7,10 @@ import { Notifications, type Note } from "@/components/Notifications";
 import { LevelTag, TabBar, useProfile } from "@/components/ui";
 import type { Level } from "@/lib/types";
 import { CITIES } from "@/lib/kb/au";
-import { DOC_TYPE_LABEL, PERSONAS } from "@/lib/personas";
+import { DOC_TYPE_LABEL, PERSONAS, visaLabel } from "@/lib/personas";
 import { daysSince, getCase, updateCase, type CaseState } from "@/lib/store";
 
-type Nearby = { count: number; issues: string[]; scope: string } | null | undefined;
+type Nearby = { count: number; sample: number; live: number; issues: string[]; scope: string } | null | undefined;
 
 
 export default function Home() {
@@ -85,8 +85,8 @@ export default function Home() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, padding: "0 18px 14px" }}>
             {[
-              ["유형", pack.short],
-              ["비자", pack.visaLabel[profile.country ?? "AU"]],
+              ["목적", pack.short],
+              ["비자", visaLabel(profile.country ?? "AU", profile.visa)],
               ["이름", profile.name ?? "—"],
             ].map(([k, v]) => (
               <div key={k} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -128,7 +128,7 @@ export default function Home() {
           </h1>
           <span className="body muted" style={{ fontSize: 14 }}>
             {pack.docTypes.slice(0, 3).map((d) => DOC_TYPE_LABEL[d]).join(" · ")}
-            <br />한국 기준과 비교해서 풀어 드려요
+            <br />현지 근로·주거 기준을 한국어로 쉽게 확인하세요
           </span>
           <Link href="/scan" className="btn block" style={{ fontSize: 16 }}>
             <IconCamera color="#fff" />
@@ -156,7 +156,7 @@ export default function Home() {
         <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span className="h2">내 주변 경고</span>
-            <span className="small faint">이용자 동의 제보 기준</span>
+            <span className="tag-caution">시연 데이터 포함</span>
           </div>
           {nearby ? (
             <div className="card-wash" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -167,6 +167,16 @@ export default function Home() {
                 {nearby.issues.join(" · ")} 제보 <span className="hl">{nearby.count}건</span>
               </span>
               <span className="small muted">일을 시작하거나 계약하기 전에 서류를 꼭 확인하세요.</span>
+              <details className="small muted">
+                <summary style={{ cursor: "pointer" }}>
+                  시연용 샘플 {nearby.sample}건 · 실제 제보 {nearby.live}건 — 이 숫자는 어떻게 세나요?
+                </summary>
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
+                  <li>샘플은 시연을 위해 만든 가상 데이터예요. 실제 통계가 아니에요.</li>
+                  <li>실제 제보는 이용자가 '익명으로 알리기'를 직접 누른 것만 세고, 서류 하나당 한 번만 알릴 수 있어요.</li>
+                  <li>제보 내용은 운영진이 검증하기 전이에요. 같은 지역 5건 미만이면 표시하지 않아요.</li>
+                </ul>
+              </details>
             </div>
           ) : nearby === null ? (
             <div className="card-wash small muted">아직 이 지역 제보가 5건 미만이라 표시하지 않아요.</div>

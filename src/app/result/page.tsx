@@ -81,6 +81,11 @@ function FindingRow({ f, n, open, onToggle }: { f: Finding; n: number; open: boo
             )}
             {f.origin === "both" && <span> · 규칙 엔진·AI 모두 확인</span>}
           </span>
+          {f.scope && (
+            <span className="small" style={{ background: "#f4f4f2", borderRadius: 6, padding: "4px 8px", color: "#333331" }}>
+              <b style={{ color: "#111" }}>적용 조건</b> {f.scope}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -105,6 +110,7 @@ export default function Result() {
   a.findings.forEach((f) => counts[f.level]++);
   const scenarioId = scenarioFor(profile.persona, a, profile.country ?? "AU");
   const wage = profile.persona !== "worker" && hasWageIssue(a);
+  const stage = c.stage ?? "before";
   const goRehearse = () => {
     updateCase({ scenarioId, rehearsal: undefined });
     router.push("/rehearse");
@@ -153,6 +159,26 @@ export default function Result() {
           )}
         </section>
 
+        {stage === "before" && a.findings.length > 0 && (
+          <section className="box" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+            <span className="h2">서명 전 확인 목록</span>
+            {a.findings
+              .filter((f) => f.action)
+              .map((f, i) => (
+                <label key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14, lineHeight: 1.5, cursor: "pointer" }}>
+                  <input type="checkbox" style={{ width: 18, height: 18, marginTop: 2, accentColor: "#111", flexShrink: 0 }} />
+                  <span>{f.action}</span>
+                </label>
+              ))}
+          </section>
+        )}
+
+        {stage === "harmed" && (
+          <div className="notice">
+            이미 피해를 봤다면 증거부터 모아 두세요. 다음 화면에서 증거 목록과 공식 상담기관, 제출용 요약을 정리해 드려요.
+          </div>
+        )}
+
         <p className="small faint" style={{ margin: 0, lineHeight: 1.5 }}>
           Global-In은 법률 자문이 아니라 확인을 돕는 도구예요. 중요한 결정 전에는 Fair Work Ombudsman 같은 공식 기관에 확인하세요.
         </p>
@@ -171,7 +197,15 @@ export default function Result() {
         <button className="btn outline" onClick={goRehearse}>
           말하기 연습
         </button>
-        {wage ? (
+        {stage === "before" ? (
+          <Link href="/send" className="btn grow" onClick={() => updateCase({ scenarioId })}>
+            수정 요청 문장 만들기
+          </Link>
+        ) : stage === "harmed" ? (
+          <Link href="/send" className="btn grow" onClick={() => updateCase({ scenarioId })}>
+            증거·상담기관 정리
+          </Link>
+        ) : wage ? (
           <Link href="/pay" className="btn grow">
             급여 계산하기
           </Link>

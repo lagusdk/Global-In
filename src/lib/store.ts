@@ -6,12 +6,16 @@ import type { WageResult } from "./wage";
 
 /** 이 기기(localStorage)에만 저장하는 상태. 서버로 보내지 않는다. */
 
+export type Stage = "before" | "working" | "harmed";
+
 export type CaseState = {
   analysis?: AnalysisResult & { text?: string };
   wage?: WageResult & { hours: number; paidHourly?: number };
   scenarioId?: string;
   rehearsal?: { turns: (ChatTurn & { coach?: CoachFeedback; translated?: string })[] };
   shared?: boolean;
+  /** 지금 상황: 서명 전 · 일하는 중 · 이미 피해를 봄 */
+  stage?: Stage;
   doneTodos?: string[];
 };
 

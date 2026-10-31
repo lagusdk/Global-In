@@ -49,7 +49,7 @@ export function runRulesJp(text: string, ctx: RuleContext): RuleOutput {
       findings.push(
         fromRule("JP-WAGE-BELOW-MIN", {
           quote: q(findRateJp(text)),
-          explanation: `이 지역 최저임금은 시급 ¥${min.toLocaleString("ja-JP")}인데 이 서류는 ¥${(min - extracted.hourlyRate).toLocaleString("ja-JP")} 낮아요. 수습·연수 기간이어도 최저임금보다 낮을 수 없어요.`,
+          explanation: `이 지역 최저임금은 시급 ¥${min.toLocaleString("ja-JP")}(2025년 개정 기준)인데 이 서류는 ¥${(min - extracted.hourlyRate).toLocaleString("ja-JP")} 낮아요. 수습·연수 기간이어도 최저임금보다 낮을 수 없어요.`,
         }),
       );
     }

@@ -24,5 +24,9 @@ export async function POST(req: Request) {
         .map((t) => ({ role: t.role, content: t.content.slice(0, 1000) }))
     : [];
 
-  return NextResponse.json(await rehearseTurn({ scenarioId, history, message }));
+  const w = body?.wage as Record<string, unknown> | undefined;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined);
+  const wage = w && n(w.expectedHourly) && n(w.hours) && n(w.shortfall) !== undefined ? { expectedHourly: n(w.expectedHourly)!, paidHourly: n(w.paidHourly), hours: n(w.hours)!, shortfall: n(w.shortfall)! } : undefined;
+  const stage = body?.stage === "before" || body?.stage === "harmed" ? body.stage : "working";
+  return NextResponse.json(await rehearseTurn({ scenarioId, history, message, wage, stage }));
 }

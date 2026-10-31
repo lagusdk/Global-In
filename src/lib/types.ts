@@ -2,6 +2,8 @@ export type PersonaId = "student" | "jobseeker" | "worker";
 
 export type Country = "AU" | "JP";
 
+export type VisaId = "whv" | "student" | "work" | "none";
+
 export type CityId = "brisbane" | "sydney" | "melbourne" | "tokyo" | "osaka" | "fukuoka";
 
 export type AuState = "QLD" | "NSW" | "VIC";
@@ -11,6 +13,8 @@ export type Profile = {
   country: Country;
   city: CityId;
   arrival: string; // YYYY-MM-DD
+  /** 체류 목적과 따로 묻는 비자 (없으면 아직 선택 안 함) */
+  visa?: VisaId;
   name?: string;
 };
 
@@ -43,6 +47,8 @@ export type Rule = {
   action: string;
   /** law: 법·규정, guide: 공식 안내, checklist: 일반 권장 확인 사항 */
   kind: "law" | "guide" | "checklist";
+  /** 적용 대상·기준일·판단 조건 (화면의 근거 옆에 표시) */
+  scope?: string;
   source: Source;
 };
 
@@ -55,6 +61,7 @@ export type Finding = {
   korea?: string;
   action?: string;
   source?: Source;
+  scope?: string;
   /** rule: 규칙 엔진, ai: LLM, both: 둘 다 찾음 */
   origin: "rule" | "ai" | "both";
 };

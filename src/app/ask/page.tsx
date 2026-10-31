@@ -160,6 +160,24 @@ export default function Ask() {
           {COUNTRIES[country].langLabel}·법학 전공 <b style={{ color: "#111" }}>멘토 서포터즈</b>가 답해요. 이름 없이 질문하고, 자물쇠를 걸면 멘토만 볼 수 있어요.
         </p>
 
+        <details className="card-wash" style={{ fontSize: 13, lineHeight: 1.6 }}>
+          <summary style={{ cursor: "pointer", fontWeight: 700 }}>멘토가 도울 수 있는 것 · 답변 시간 · 바로 공식 기관에 갈 때</summary>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+            <span>
+              <b>도울 수 있어요</b> — 현지어 표현·문장 다듬기, 비슷한 경험 공유, 어떤 기관에 무엇을 물어보면 되는지 안내
+            </span>
+            <span>
+              <b>어려워요</b> — 법률 판단이나 대리, 소송·신고 대행, 긴급 상황 대응 (멘토는 변호사·노무사가 아니에요)
+            </span>
+            <span>
+              <b>답변 시간</b> — 보통 1~2일 안에 달려요. 바로 답이 필요하면 공식 상담 창구를 먼저 이용하세요.
+            </span>
+            <span>
+              <b>이럴 땐 바로 공식 기관</b> — 폭력·협박, 여권·재류카드를 빼앗김, 임금을 전혀 못 받음, 비자 문제 → 현지 노동 상담기관이나 대사관·총영사관 (외교부 영사콜센터 +82-2-3210-0404, 24시간)
+            </span>
+          </div>
+        </details>
+
         <section className="box" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
           <div className="seg" role="group" aria-label="질문 종류" style={{ alignSelf: "flex-start", flexWrap: "wrap" }}>
             {(Object.keys(CATEGORY_LABEL) as QCategory[]).map((k) => (

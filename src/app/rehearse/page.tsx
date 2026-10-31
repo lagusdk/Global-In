@@ -6,7 +6,7 @@ import { IconSend } from "@/components/icons";
 import { ModeBadge, Spinner, TopBar, useProfile } from "@/components/ui";
 import { scenarioFor } from "@/lib/caseFlow";
 import { COUNTRIES } from "@/lib/kb/countries";
-import { SCENARIOS_BY_ID, scenariosFor } from "@/lib/scenarios";
+import { SCENARIOS_BY_ID, personalizeScenario, scenariosFor } from "@/lib/scenarios";
 import { getCase, updateCase } from "@/lib/store";
 import type { ChatTurn, CoachFeedback, RehearseReply } from "@/lib/types";
 
@@ -95,7 +95,11 @@ export default function Rehearse() {
   }, [turns, busy]);
 
   if (!profile || !scenarioId) return <main className="phone" />;
-  const scenario = SCENARIOS_BY_ID[scenarioId];
+  const cs = getCase();
+  const base = SCENARIOS_BY_ID[scenarioId];
+  // 급여 계산에서 확정한 숫자(같은 나라일 때만)와 상황을 리허설에 이어 준다.
+  const wctx = cs.wage && cs.wage.country === base.country ? { expectedHourly: cs.wage.expectedHourly, paidHourly: cs.wage.paidHourly, hours: cs.wage.hours, shortfall: cs.wage.shortfall } : undefined;
+  const scenario = personalizeScenario(base, wctx, cs.stage);
   const info = COUNTRIES[scenario.country];
   const options = scenariosFor(scenario.country, profile.persona);
 
@@ -118,7 +122,7 @@ export default function Rehearse() {
       const res = await fetch("/api/rehearse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenarioId, history, message }),
+        body: JSON.stringify({ scenarioId, history, message, wage: wctx, stage: cs.stage }),
       });
       const data = (await res.json()) as RehearseReply & { error?: string };
       if (!res.ok) throw new Error(data.error);

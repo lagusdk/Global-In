@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IconChevron } from "@/components/icons";
 import { CITIES, COUNTRIES, citiesOf } from "@/lib/kb/countries";
-import { PERSONA_LIST } from "@/lib/personas";
+import { PERSONA_LIST, VISAS } from "@/lib/personas";
 import { getProfile, setProfile, updateCase } from "@/lib/store";
-import type { CityId, Country, PersonaId } from "@/lib/types";
+import type { CityId, Country, PersonaId, VisaId } from "@/lib/types";
 
 const COMING = ["캐나다", "영국", "뉴질랜드"];
 
@@ -20,6 +20,7 @@ export default function Onboarding() {
   const router = useRouter();
   const [persona, setPersona] = useState<PersonaId>("jobseeker");
   const [country, setCountry] = useState<Country>("AU");
+  const [visa, setVisa] = useState<VisaId | "">("");
   const [city, setCity] = useState<CityId>("brisbane");
   const [arrival, setArrival] = useState(today(12));
   const [name, setName] = useState("");
@@ -29,6 +30,7 @@ export default function Onboarding() {
     if (p) {
       setPersona(p.persona);
       setCountry(p.country ?? "AU");
+      setVisa(p.visa ?? "");
       setCity(p.city);
       setArrival(p.arrival);
       setName(p.name ?? "");
@@ -37,7 +39,7 @@ export default function Onboarding() {
 
   const start = () => {
     const prev = getProfile();
-    setProfile({ persona, country, city, arrival, name: name.trim() || undefined });
+    setProfile({ persona, country, city, arrival, visa: visa || undefined, name: name.trim() || undefined });
     // 대상이나 국가가 바뀌면 이전 사례 기록은 지운다.
     if (prev && (prev.persona !== persona || (prev.country ?? "AU") !== country)) updateCase({ analysis: undefined, wage: undefined, scenarioId: undefined, rehearsal: undefined, shared: false, doneTodos: [] });
     router.push("/home");
@@ -138,6 +140,23 @@ export default function Onboarding() {
         </div>
 
         <label className="field">
+          비자 (목적과 따로 골라 주세요)
+          <select className="input" value={visa} onChange={(e) => setVisa(e.target.value as VisaId)}>
+            <option value="" disabled>
+              선택해 주세요
+            </option>
+            {VISAS[country].map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+          <span className="small faint" style={{ fontWeight: 400 }}>
+            비자에 따라 일할 수 있는 시간·조건이 달라요. 학생비자를 고르면 근무시간 한도도 함께 확인해요.
+          </span>
+        </label>
+
+        <label className="field">
           이름 (메시지 서명용, 선택)
           <input className="input" value={name} maxLength={20} placeholder="예: 지우" onChange={(e) => setName(e.target.value)} />
         </label>
@@ -152,7 +171,7 @@ export default function Onboarding() {
       </div>
 
       <div className="actions" style={{ flexDirection: "column", gap: 8 }}>
-        <button className="btn block" onClick={start} disabled={!arrival}>
+        <button className="btn block" onClick={start} disabled={!arrival || !visa}>
           시작하기
         </button>
         <span className="small muted" style={{ textAlign: "center" }}>

@@ -28,7 +28,11 @@ function helpFor(kind: string, country: Country, region: string): Help[] {
     return [{ name: a.name, desc: `보증금 보관 기관 · 집주인은 ${a.within} 맡겨야 해요`, url: a.url }, embassy];
   }
   if (kind === "package") return [{ name: "국민연금공단", desc: "사회보장협정 가입증명서 안내", url: "https://www.nps.or.kr" }, { name: "ATO", desc: "호주 세금 거주자 판정 안내", url: "https://www.ato.gov.au" }];
-  return [{ name: "Fair Work Ombudsman", desc: "임금·근로 상담·신고 무료 · 통역 TIS 131 450", url: "https://www.fairwork.gov.au" }, embassy];
+  return [
+    { name: "Fair Work Ombudsman", desc: "임금·근로 상담·신고 무료 · 통역 TIS 131 450", url: "https://www.fairwork.gov.au" },
+    { name: "워킹홀리데이 인포센터 (재외동포청)", desc: "호주 임금체불 대응 절차·준비 자료 안내 (한국어)", url: "https://whic.mofa.go.kr/whic/nation/info.jsp?boardNo=100002" },
+    embassy,
+  ];
 }
 
 export default function Send() {
@@ -38,12 +42,14 @@ export default function Send() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [scenarioId, setScenarioId] = useState<string | null>(null);
+  const [stage, setStage] = useState<"before" | "working" | "harmed">("working");
 
   useEffect(() => {
     if (!profile) return;
     const c = getCase();
     const id = c.scenarioId && SCENARIOS_BY_ID[c.scenarioId] ? c.scenarioId : scenarioFor(profile.persona, c.analysis, profile.country ?? "AU");
     setScenarioId(id);
+    setStage(c.stage ?? "working");
     const kind = SCENARIOS_BY_ID[id].messageKind;
     fetch("/api/message", {
       method: "POST",
@@ -54,6 +60,9 @@ export default function Send() {
         name: profile.name,
         wage: kind === "wage" && c.wage ? { hours: c.wage.hours, paidHourly: c.wage.paidHourly, paidTotal: c.wage.paidTotal, expectedHourly: c.wage.expectedHourly, expectedTotal: c.wage.expectedTotal, shortfall: c.wage.shortfall } : undefined,
         findings: c.analysis?.findings.map((f) => f.title) ?? [],
+        ruleIds: c.analysis?.findings.map((f) => f.ruleId).filter(Boolean) ?? [],
+        stage: c.stage ?? "working",
+        basisFrom: c.wage?.effectiveFrom,
       }),
     })
       .then(async (r) => {
@@ -84,7 +93,7 @@ export default function Send() {
     <main className="phone">
       <div className="screen with-actions" style={{ gap: 12 }}>
         <TopBar
-          title="보낼 메시지"
+          title={stage === "before" ? "수정 요청 메시지" : stage === "harmed" ? "상담용 요약" : "보낼 메시지"}
           back=""
           right={
             <div className="seg" role="group" aria-label="언어">
@@ -102,7 +111,7 @@ export default function Send() {
           <div style={{ display: "flex", gap: 12, padding: "10px 14px", borderBottom: "1px solid #dadad6", fontSize: 13 }}>
             <span className="faint" style={{ width: 44 }}>받는 이</span>
             <span style={{ fontWeight: 600 }}>
-              {scenario.counterpart.name} ({scenario.counterpart.role})
+              {stage === "harmed" ? (country === "JP" ? "노동기준감독서 · 영사관 상담용" : "Fair Work · 영사관 상담용") : `${scenario.counterpart.name} (${scenario.counterpart.role})`}
             </span>
           </div>
           <div style={{ display: "flex", gap: 12, padding: "10px 14px", borderBottom: "1px solid #dadad6", fontSize: 13 }}>
@@ -124,9 +133,27 @@ export default function Send() {
           </div>
         )}
 
+        {stage === "harmed" && (
+          <section>
+            <div className="section-head">
+              <span className="h2">지금 모아 둘 증거</span>
+              <span className="small faint">이 기기에만 체크돼요</span>
+            </div>
+            {(country === "JP"
+              ? ["회사 이름·주소·담당자", "출퇴근 날짜·시간 기록 (메모·사진도 좋아요)", "급여명세서·통장 입금 내역", "근로계약서·근로조건통지서·구인 광고", "점장과 주고받은 메시지 캡처"]
+              : ["고용주 이름·사업자번호(ABN)·주소", "근무 날짜·시간 기록 (메모·사진도 좋아요)", "급여명세서·통장 입금 내역", "근로계약서·구인 광고", "고용주와 주고받은 메시지 캡처"]
+            ).map((t) => (
+              <label key={t} className="row" style={{ cursor: "pointer", minHeight: 44 }}>
+                <input type="checkbox" style={{ width: 18, height: 18, accentColor: "#111" }} />
+                <span style={{ fontSize: 14 }}>{t}</span>
+              </label>
+            ))}
+          </section>
+        )}
+
         <section>
           <div className="section-head">
-            <span className="h2">해결이 안 되면</span>
+            <span className="h2">{stage === "harmed" ? "상담할 곳" : "해결이 안 되면"}</span>
             <span className="small faint">{CITIES[profile.city].label} 기준</span>
           </div>
           {helpFor(scenario.messageKind, country, CITIES[profile.city].region).map((h) => (

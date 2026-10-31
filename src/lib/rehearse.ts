@@ -1,8 +1,8 @@
 import { LlmError, chatJson, llmEnabled } from "./llm";
-import { SCENARIOS_BY_ID, hasHangul, offlineCoach } from "./scenarios";
+import { SCENARIOS_BY_ID, hasHangul, offlineCoach, personalizeScenario, type WageContext } from "./scenarios";
 import type { ChatTurn, RehearseReply } from "./types";
 
-export type RehearseInput = { scenarioId: string; history: ChatTurn[]; message: string };
+export type RehearseInput = { scenarioId: string; history: ChatTurn[]; message: string; wage?: WageContext; stage?: "before" | "working" | "harmed" };
 
 type LlmRehearse = {
   reply?: string;
@@ -14,7 +14,8 @@ type LlmRehearse = {
 const clampScore = (n: unknown, fallback: number) => (typeof n === "number" ? Math.min(3, Math.max(1, Math.round(n))) : fallback);
 
 export async function rehearseTurn(input: RehearseInput): Promise<RehearseReply> {
-  const scenario = SCENARIOS_BY_ID[input.scenarioId];
+  const base = SCENARIOS_BY_ID[input.scenarioId];
+  const scenario = base ? personalizeScenario(base, input.wage, input.stage) : undefined;
   if (!scenario) throw new Error("unknown scenario");
   const userTurns = input.history.filter((t) => t.role === "user").length;
 
@@ -50,7 +51,7 @@ export async function rehearseTurn(input: RehearseInput): Promise<RehearseReply>
   const system = `You are running a negotiation rehearsal for a young Korean person living in ${ja ? "Japan" : "Australia"}.
 Play ${scenario.counterpart.name}, a ${scenario.counterpart.role} (${scenario.counterpart.style}). Facts: ${scenario.facts}
 Stay in character and speak ${ja ? "natural, simple spoken Japanese" : "natural, simple Australian English"} in at most 2 short sentences. Push back at first; become more cooperative only when the user states a clear request backed by a number or a rule. Never give legal advice as the character. Do not be abusive.
-Also act as a coach for the user. Coach text must be in Korean (해요체), short. "better" is one improved ${ja ? "polite Japanese (です・ます調)" : "English"} sentence the user could say next.
+Also act as a coach for the user. Coach text must be in Korean (해요체), short. "better" is one improved ${ja ? "polite Japanese (です・ます調)" : "English"} sentence the user could say next. When the facts give a rate or amount, the "better" sentence must use those exact numbers (example: ${scenario.modelLine}).
 If the user's message is in Korean, put its natural ${lang} translation in "translated" and respond to that meaning.
 Set coach.pressure to true only if YOUR reply as the character contains intimidation or a threat of losing the job/room; then explain in pressureNote (Korean, one sentence) why that matters.
 Output one JSON object only: {"reply": string, "translated": string|null, "coach": {"praise": string, "better": string, "scores": {"clarity": 1-3, "evidence": 1-3, "politeness": 1-3}, "pressure": boolean, "pressureNote": string|null}, "done": boolean}`;

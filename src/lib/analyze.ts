@@ -125,6 +125,7 @@ export function mergeFindings(ruleHits: Finding[], llmFindings: LlmAnalysis["fin
           korea: raw.korea ?? rule.korea,
           action: raw.action ?? rule.action,
           source: rule.source.url ? rule.source : undefined,
+          scope: rule.scope,
           origin: "ai",
         });
       }

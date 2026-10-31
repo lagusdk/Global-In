@@ -3,6 +3,7 @@ import { CITIES } from "./kb/countries";
 import { JP_PAY, jpMinHourly } from "./kb/jp";
 import { chatJson, llmEnabled } from "./llm";
 import { SCENARIOS_BY_ID } from "./scenarios";
+import { beforeSigningMessage, harmedSummary } from "./stageMessages";
 import type { AuState, CityId, DraftMessage } from "./types";
 import { formatAud } from "./wage";
 
@@ -12,12 +13,20 @@ export type MessageInput = {
   name?: string;
   wage?: { hours: number; paidHourly?: number; paidTotal: number; expectedHourly: number; expectedTotal: number; shortfall: number };
   findings?: string[];
+  /** 서류에서 찾은 규칙 id (상황별 템플릿에 사용) */
+  ruleIds?: string[];
+  stage?: "before" | "working" | "harmed";
+  basisFrom?: string;
 };
 
 const yen = (n: number) => `${Math.round(n).toLocaleString("ja-JP")}円`;
 
 /** 오프라인용 템플릿. 숫자는 항상 코드가 계산한 값을 넣는다. */
 export function templateMessage(input: MessageInput): DraftMessage {
+  const scenario = SCENARIOS_BY_ID[input.scenarioId];
+  const stageInput = { city: input.city, to: scenario?.counterpart.name ?? "", name: input.name, ruleIds: input.ruleIds ?? [], wage: input.wage ? { hours: input.wage.hours, shortfall: input.wage.shortfall, basisFrom: input.basisFrom } : undefined };
+  if (input.stage === "before") return beforeSigningMessage(stageInput);
+  if (input.stage === "harmed") return harmedSummary(stageInput);
   return CITIES[input.city].country === "JP" ? templateJp(input) : templateAu(input);
 }
 
@@ -142,7 +151,7 @@ export async function draftMessage(input: MessageInput): Promise<DraftMessage> {
     });
     if (!out.bodyLocal || !out.bodyKo) return template;
     // 금액이 바뀌었으면 템플릿을 그대로 쓴다.
-    if (input.wage) {
+    if (input.wage && input.stage !== "before") {
       const amount = ja ? Math.round(input.wage.shortfall).toLocaleString("ja-JP") : formatAud(input.wage.shortfall);
       if (!out.bodyLocal.includes(amount)) return template;
     }

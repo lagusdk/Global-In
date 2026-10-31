@@ -7,10 +7,69 @@ import { LevelTag, TopBar, useProfile } from "@/components/ui";
 import { scenarioFor } from "@/lib/caseFlow";
 import { AU_PAY } from "@/lib/kb/au";
 import { CITIES, formatMoney } from "@/lib/kb/countries";
-import { JP_PAY, jpMinHourly } from "@/lib/kb/jp";
+import { JP_PAY } from "@/lib/kb/jp";
+import { payBasis, todayIso, type PayBasis } from "@/lib/payBasis";
 import { getCase, updateCase, type CaseState } from "@/lib/store";
 import type { CityId, Country, EmploymentType } from "@/lib/types";
 import { calcStudentHours, calcStudentHoursJp, calcWage, calcWageJp, formatAud } from "@/lib/wage";
+
+
+/** 근무 날짜에 맞는 최저임금 기준 + 오래된 기준 경고 + 직접 입력 */
+function BasisPanel(props: {
+  country: Country;
+  date: string;
+  setDate: (v: string) => void;
+  basis: PayBasis;
+  override: string;
+  setOverride: (v: string) => void;
+  adult?: boolean;
+  setAdult?: (v: boolean) => void;
+}) {
+  const { country, date, setDate, basis, override, setOverride } = props;
+  const money = (n: number) => formatMoney(n, country);
+  const officialUrl =
+    country === "JP" ? "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/minimumichiran/" : "https://www.fairwork.gov.au/pay-and-wages/minimum-wages";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, alignItems: "end" }}>
+        <label className="field">
+          근무(예정) 날짜
+          <input className="input mono" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ fontSize: 14 }} />
+        </label>
+        <div className="small" style={{ lineHeight: 1.5, paddingBottom: 6 }}>
+          적용 기준 <b>{money(basis.hourly)}</b>
+          <br />
+          <span className="muted">{basis.from}부터 · {country === "JP" ? "지역 최저임금" : "국가 최저시급"}</span>
+        </div>
+      </div>
+      {(basis.stale || basis.beforeKnown) && (
+        <div className="error" role="alert" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <span>
+            {basis.stale
+              ? `이 날짜에는 ${basis.nextRevision} 전후 개정된 새 기준이 적용될 수 있는데, 아직 반영하지 못했어요. 아래는 ${basis.from} 기준으로 계산한 추정치예요.`
+              : "이 날짜보다 앞선 기준은 갖고 있지 않아서 가장 오래된 기준으로 계산했어요."}
+          </span>
+          <label className="field" style={{ color: "#111", fontWeight: 600 }}>
+            공식 페이지에서 확인한 최저시급 직접 입력 (선택)
+            <input className="input mono" inputMode="decimal" value={override} onChange={(e) => setOverride(e.target.value)} placeholder={String(basis.hourly)} />
+          </label>
+          <a href={officialUrl} target="_blank" rel="noreferrer" className="small" style={{ textDecoration: "underline" }}>
+            {country === "JP" ? "후생노동성 지역별 최저임금 표 열기" : "Fair Work 최저임금 페이지 열기"}
+          </a>
+        </div>
+      )}
+      {props.setAdult && (
+        <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, minHeight: 40 }}>
+          <input type="checkbox" checked={props.adult} onChange={(e) => props.setAdult!(e.target.checked)} style={{ width: 20, height: 20, accentColor: "#111" }} />
+          만 21세 이상이에요
+        </label>
+      )}
+      {props.setAdult && !props.adult && (
+        <div className="notice">만 21세 미만은 업종 어워드의 주니어 시급이 적용될 수 있어서 이 계산이 맞지 않을 수 있어요. Fair Work의 Pay Calculator로 꼭 확인하세요.</div>
+      )}
+    </div>
+  );
+}
 
 const TYPE_LABEL: Record<Exclude<EmploymentType, "unknown">, string> = { casual: "캐주얼", part_time: "파트타임", full_time: "풀타임" };
 
@@ -19,13 +78,20 @@ function WageCalculator({ c }: { c: CaseState }) {
   const [hours, setHours] = useState(String(ex?.hoursPerWeek ?? 38));
   const [rate, setRate] = useState(String(ex?.hourlyRate ?? 22));
   const [type, setType] = useState<Exclude<EmploymentType, "unknown">>(ex?.employmentType && ex.employmentType !== "unknown" ? ex.employmentType : "casual");
+  const [date, setDate] = useState(todayIso());
+  const [override, setOverride] = useState("");
+  const [adult, setAdult] = useState(true);
+  const basis = payBasis("AU", date);
+  const base = Number(override) > 0 ? Number(override) : basis.hourly;
+  const basisFrom = Number(override) > 0 ? "직접 입력" : basis.from;
+  const before = c.stage === "before";
 
   const result = useMemo(() => {
     const h = Number(hours);
     const r = Number(rate);
     if (!(h > 0) || !(r >= 0) || h > 168) return null;
-    return calcWage({ hours: h, employmentType: type, paidHourly: r });
-  }, [hours, rate, type]);
+    return calcWage({ hours: h, employmentType: type, paidHourly: r, baseHourly: base, basisFrom });
+  }, [hours, rate, type, base, basisFrom]);
 
   useEffect(() => {
     if (result) updateCase({ wage: { ...result, hours: Number(hours), paidHourly: Number(rate) } });
@@ -36,11 +102,11 @@ function WageCalculator({ c }: { c: CaseState }) {
       <h1 className="display h1">
         {result && result.shortfall > 0 ? (
           <>
-            이번 주,
+            {before ? "이 조건대로면 주마다" : "입력한 조건이라면 이번 주"}
             <br />
             <span className="hl">A${formatAud(result.shortfall)}</span>를
             <br />
-            덜 받았을 수 있어요
+            {before ? "적게 받게 돼요 (추정)" : "덜 받았을 수 있어요 (추정)"}
           </>
         ) : (
           <>
@@ -109,12 +175,14 @@ function WageCalculator({ c }: { c: CaseState }) {
             <span style={{ fontSize: 20, color: result.shortfall > 0 ? "#c42b1c" : "#1f7a4d" }}>{formatAud(result.shortfall)}</span>
           </div>
           <span className="small muted">
-            {result.effectiveFrom} 기준 · 업종 어워드·주말·야간 가산 미반영 (실제로는 더 받아야 할 수 있어요)
+            입력 조건에 따른 추정 차액 · 만 21세 이상 · 국가 최저시급 {result.effectiveFrom} 기준 · 업종 어워드·주말·야간 가산 미반영 (실제로는 다를 수 있어요)
           </span>
         </div>
       ) : (
         <div className="error">근무시간과 시급을 숫자로 넣어 주세요.</div>
       )}
+
+      <BasisPanel country="AU" date={date} setDate={setDate} basis={basis} override={override} setOverride={setOverride} adult={adult} setAdult={setAdult} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <span className="h2" style={{ fontSize: 14 }}>이렇게 계산해요</span>
@@ -238,14 +306,19 @@ function WageCalculatorJp({ c, city }: { c: CaseState; city: CityId }) {
   const ex = c.analysis?.extracted;
   const [hours, setHours] = useState(String(ex?.hoursPerWeek ?? 45));
   const [rate, setRate] = useState(String(ex?.hourlyRate ?? 1100));
-  const min = jpMinHourly(city);
+  const [date, setDate] = useState(todayIso());
+  const [override, setOverride] = useState("");
+  const basis = payBasis("JP", date, city);
+  const min = Number(override) > 0 ? Number(override) : basis.hourly;
+  const basisFrom = Number(override) > 0 ? "직접 입력" : basis.from;
+  const before = c.stage === "before";
 
   const result = useMemo(() => {
     const h = Number(hours);
     const r = Number(rate);
     if (!(h > 0) || !(r >= 0) || h > 168) return null;
-    return calcWageJp({ hours: h, paidHourly: r, city });
-  }, [hours, rate, city]);
+    return calcWageJp({ hours: h, paidHourly: r, city, minHourly: min, basisFrom });
+  }, [hours, rate, city, min, basisFrom]);
 
   useEffect(() => {
     if (result) updateCase({ wage: { ...result, hours: Number(hours), paidHourly: Number(rate) } });
@@ -260,11 +333,11 @@ function WageCalculatorJp({ c, city }: { c: CaseState; city: CityId }) {
       <h1 className="display h1">
         {result && result.shortfall > 0 ? (
           <>
-            이번 주,
+            {before ? "이 조건대로면 주마다" : "입력한 조건이라면 이번 주"}
             <br />
             <span className="hl">{formatMoney(result.shortfall, "JP")}</span>를
             <br />
-            덜 받았을 수 있어요
+            {before ? "적게 받게 돼요 (추정)" : "덜 받았을 수 있어요 (추정)"}
           </>
         ) : (
           <>
@@ -329,11 +402,12 @@ function WageCalculatorJp({ c, city }: { c: CaseState; city: CityId }) {
             <span>차액</span>
             <span style={{ fontSize: 20, color: result.shortfall > 0 ? "#c42b1c" : "#1f7a4d" }}>{formatMoney(result.shortfall, "JP")}</span>
           </div>
-          <span className="small muted">최저임금 {JP_PAY.effectiveFrom} 기준 · 심야(22~5시)·휴일 할증 미반영</span>
+          <span className="small muted">입력 조건에 따른 추정 차액 · 지역 최저임금 {result.effectiveFrom} 기준 · 심야(22~5시)·휴일 할증 미반영</span>
         </div>
       ) : (
         <div className="error">근무시간과 시급을 숫자로 넣어 주세요.</div>
       )}
+      <BasisPanel country="JP" date={date} setDate={setDate} basis={basis} override={override} setOverride={setOverride} />
       <div className="notice">AI는 서류에서 숫자만 읽고, 계산은 후생노동성 최저임금표와 노동기준법 할증률로 코드가 해요.</div>
     </>
   );

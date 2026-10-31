@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Global-In — 서명하기 전에, 한 번 찍어보세요",
-  description: "해외로 나가는 청년을 위한 AI 정착 내비게이션. 계약서를 한국 기준으로 풀어 주고, 받을 돈을 계산하고, 말하기 연습까지 도와줍니다.",
+  description: "해외로 나가는 청년을 위한 AI 정착 내비게이션. 계약서를 현지 기준에 맞춰 한국어로 풀어 주고, 받을 돈을 계산하고, 말하기 연습까지 도와줍니다.",
 };
 
 export const viewport: Viewport = {

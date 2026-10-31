@@ -38,7 +38,7 @@ export const JP_RULES: Rule[] = [
     docTypes: ["employment_contract", "payslip", "job_ad"],
     explain: "일본 최저임금은 도도부현마다 달라요. 수습·연수 기간이어도 지역 최저임금보다 낮게 줄 수 없어요.",
     korea: "한국으로 치면 최저시급보다 적게 주는 알바예요.",
-    action: "급여 계산으로 덜 받는 금액을 확인하고, 근거와 함께 정정을 요청하세요.",
+    action: "서명 전이라면 시급을 지역 최저임금 이상으로 고쳐 달라고 요청하고, 이미 일했다면 급여 계산으로 차액을 확인해 정산을 요청하세요.",
     kind: "law",
     source: MHLW_MIN,
   },

@@ -1,4 +1,4 @@
-import { BOND_AUTHORITY, bondSourceFor } from "./kb/au";
+import { AU_PAY, BOND_AUTHORITY, bondSourceFor } from "./kb/au";
 import { runRulesJp } from "./ruleEngineJp";
 import { assignmentChecks, dedupe, find, fromRule, quoteAround, sortFindings } from "./ruleUtil";
 import type { AuState, Country, DocType, EmploymentType, Extracted, Finding, PersonaId } from "./types";
@@ -86,8 +86,8 @@ function runRulesAu(text: string, ctx: RuleContext): RuleOutput {
           quote: rateAt ? quoteAround(text, rateAt.index) : undefined,
           explanation:
             type === "casual"
-              ? `캐주얼은 유급휴가가 없는 대신 25%를 더 받아야 해요. 최소 A$${formatAud(min)}인데 이 서류는 A$${formatAud(gap)} 낮아요.`
-              : `최저시급은 A$${formatAud(min)}인데 이 서류는 A$${formatAud(gap)} 낮아요. 업종 어워드에 따라 기준이 더 높을 수 있어요.`,
+              ? `캐주얼은 유급휴가가 없는 대신 25%를 더 받아야 해요. 최소 A$${formatAud(min)}(${AU_PAY.effectiveFrom} 기준)인데 이 서류는 A$${formatAud(gap)} 낮아요.`
+              : `최저시급은 A$${formatAud(min)}(${AU_PAY.effectiveFrom} 기준)인데 이 서류는 A$${formatAud(gap)} 낮아요. 업종 어워드에 따라 기준이 더 높을 수 있어요.`,
         }),
       );
     }

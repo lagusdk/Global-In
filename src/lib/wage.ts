@@ -7,8 +7,8 @@ export function roundCents(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-export function minimumHourly(type: EmploymentType): number {
-  const base = AU_PAY.nationalMinimumHourly;
+/** base를 주면 그 기준(근무 날짜에 맞는 최저시급)으로, 없으면 최신 확인 기준으로 계산한다. */
+export function minimumHourly(type: EmploymentType, base: number = AU_PAY.nationalMinimumHourly): number {
   return roundCents(type === "casual" ? base * (1 + AU_PAY.casualLoading) : base);
 }
 
@@ -18,6 +18,9 @@ export type WageInput = {
   /** 시급으로 받았으면 시급, 총액으로 받았으면 paidTotal을 쓴다 */
   paidHourly?: number;
   paidTotal?: number;
+  /** 근무 날짜에 적용되는 국가 최저시급 (payBasis). 없으면 최신 확인 기준 */
+  baseHourly?: number;
+  basisFrom?: string;
 };
 
 export type WageLine = { label: string; amount: number; sign?: "+" | "-" };
@@ -39,8 +42,8 @@ export function calcWage(input: WageInput): WageResult {
   const paidTotal =
     input.paidTotal !== undefined ? roundCents(input.paidTotal) : roundCents((input.paidHourly ?? 0) * input.hours);
 
-  const baseHourly = AU_PAY.nationalMinimumHourly;
-  const expectedHourly = minimumHourly(input.employmentType);
+  const baseHourly = input.baseHourly ?? AU_PAY.nationalMinimumHourly;
+  const expectedHourly = minimumHourly(input.employmentType, baseHourly);
   const loading = roundCents(expectedHourly - baseHourly);
   const expectedTotal = roundCents(expectedHourly * input.hours);
   const shortfall = Math.max(0, roundCents(expectedTotal - paidTotal));
@@ -57,7 +60,7 @@ export function calcWage(input: WageInput): WageResult {
     paidTotal,
     shortfall,
     lines,
-    effectiveFrom: AU_PAY.effectiveFrom,
+    effectiveFrom: input.basisFrom ?? AU_PAY.effectiveFrom,
   };
 }
 
@@ -79,9 +82,9 @@ export function calcStudentHours(week1: number, week2: number, inSession = true)
  * 일본: 받아야 할 시급 = max(받은 시급, 지역 최저임금).
  * 주 40시간을 넘는 시간은 25% 할증. (심야·휴일 할증은 근무 시간대를 몰라 반영하지 않는다.)
  */
-export function calcWageJp(input: { hours: number; paidHourly: number; city: CityId }): WageResult {
+export function calcWageJp(input: { hours: number; paidHourly: number; city: CityId; minHourly?: number; basisFrom?: string }): WageResult {
   if (!(input.hours > 0)) throw new Error("근무 시간은 0보다 커야 해요");
-  const minHourly = jpMinHourly(input.city);
+  const minHourly = input.minHourly ?? jpMinHourly(input.city);
   const baseHourly = Math.max(input.paidHourly, minHourly);
   const regular = Math.min(input.hours, JP_PAY.legalWeeklyHours);
   const overtime = Math.max(0, input.hours - JP_PAY.legalWeeklyHours);
@@ -99,7 +102,7 @@ export function calcWageJp(input: { hours: number; paidHourly: number; city: Cit
     paidTotal,
     shortfall: Math.max(0, expectedTotal - paidTotal),
     lines,
-    effectiveFrom: JP_PAY.effectiveFrom,
+    effectiveFrom: input.basisFrom ?? JP_PAY.effectiveFrom,
   };
 }
 

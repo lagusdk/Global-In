@@ -36,6 +36,7 @@ export function fromRule(ruleId: string, extra: Partial<Finding> = {}): Finding 
     korea: r.korea,
     action: r.action,
     source: { ...r.source },
+    scope: r.scope,
     origin: "rule",
     ...extra,
   };
