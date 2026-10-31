@@ -43,7 +43,7 @@ export default function Landing() {
           </Link>
           <nav className="lp-nav">
             <a href="#how">기능</a>
-            <a href="#trust">신뢰</a>
+            <a href="#principles">원칙</a>
             <Link href="/org/login">기관용</Link>
             <Link href={startHref} className="btn sm">
               {started ? "이어서 하기" : "시작하기"}
@@ -202,11 +202,11 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="trust" className="lp-section lp-dark">
+      <section id="principles" className="lp-section lp-dark">
         <div className="lp-inner">
           <div className="lp-section-head">
             <span className="mono small" style={{ color: "#bdbdb8" }}>
-              TRUST
+              PRINCIPLES
             </span>
             <h2 className="display lp-h2">AI를 믿을 수 있게 만든 세 가지</h2>
           </div>
