@@ -175,9 +175,24 @@ export default function Home() {
           )}
         </section>
 
-        <Link href="/org/login" className="small faint" style={{ textDecoration: "underline", alignSelf: "center", padding: 8 }}>
-          기관 담당자용 대시보드
+        <Link href="/ask" className="box" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+            <span className="small muted">외국어·법학 전공 멘토 서포터즈 · 익명</span>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>
+              혼자 고민될 땐 <span className="hl">멘토에게 물어보기</span>
+            </span>
+          </span>
+          <IconChevron />
         </Link>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+          <Link href="/org/login" className="small faint" style={{ textDecoration: "underline", padding: 8 }}>
+            기관 담당자용 대시보드
+          </Link>
+          <Link href="/mentor/login" className="small faint" style={{ textDecoration: "underline", padding: 8 }}>
+            멘토 서포터즈 참여
+          </Link>
+        </div>
 
         {c.shared && (
           <div className="notice" style={{ display: "flex", gap: 8, alignItems: "center" }}>

@@ -157,9 +157,14 @@ export default function Result() {
           Global-In은 법률 자문이 아니라 확인을 돕는 도구예요. 중요한 결정 전에는 Fair Work Ombudsman 같은 공식 기관에 확인하세요.
         </p>
 
-        <Link href="/share" className="small" style={{ textDecoration: "underline", alignSelf: "flex-start" }}>
-          비슷한 일을 겪을 다음 사람을 위해 익명으로 알리기
-        </Link>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Link href="/ask" className="small" style={{ textDecoration: "underline", alignSelf: "flex-start" }}>
+            판단이 어려우면 멘토에게 익명으로 물어보기
+          </Link>
+          <Link href="/share" className="small" style={{ textDecoration: "underline", alignSelf: "flex-start" }}>
+            비슷한 일을 겪을 다음 사람을 위해 익명으로 알리기
+          </Link>
+        </div>
       </div>
 
       <div className="actions">
