@@ -1,0 +1,26 @@
+{
+  "name": "global-in",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Global-In: 해외 진출 청년을 위한 AI 정착 내비게이션 (2026 AI 라이프 솔루션 챌린지)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
