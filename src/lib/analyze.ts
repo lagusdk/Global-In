@@ -1,5 +1,5 @@
 import { AU_PAY, AU_RULES, CITIES, RULES_BY_ID } from "./kb/au";
-import { LlmError, TEXT_MODEL, VISION_MODEL, chat, chatJson, llmEnabled } from "./llm";
+import { LlmError, TEXT_MODEL, chat, chatJson, llmEnabled } from "./llm";
 import { DOC_TYPE_LABEL } from "./personas";
 import { detectDocType, runRules, sortFindings } from "./ruleEngine";
 import type { AnalysisResult, CityId, DocType, Extracted, Finding, Level, PersonaId } from "./types";
@@ -24,7 +24,7 @@ const MAX_TEXT = 12_000;
 /** 서류 사진을 비전 모델로 글자 그대로 옮긴다. */
 export async function transcribeImage(dataUrl: string): Promise<string> {
   const text = await chat({
-    model: VISION_MODEL,
+    kind: "vision",
     maxTokens: 1500,
     temperature: 0,
     messages: [
@@ -86,7 +86,7 @@ ${text.slice(0, MAX_TEXT)}
 """
 
 다음 형식으로 답하세요:
-{"docTitle": "서류 제목(한국어, 15자 이내)", "language": "원문 언어(한국어로)", "summary": "이 서류 한 줄 요약", "koreaSummary": "한국으로 치면 어떤 상황인지 한 문장", "findings": [{"ruleId": "규칙 id 또는 null", "level": "risk|caution|info", "title": "짧은 제목", "quote": "원문 인용", "explanation": "설명", "korea": "한국에 빗댄 설명", "action": "할 일"}], "okItems": ["문제없는 조항 요약"], "extracted": {"hourlyRate": 숫자 또는 null, "employmentType": "casual|part_time|full_time|unknown", "hoursPerWeek": 숫자 또는 null, "payMethod": "cash|bank|unknown", "weeklyRent": 숫자 또는 null, "bondAmount": 숫자 또는 null}}`;
+{"docTitle": "서류 제목(한국어, 15자 이내)", "language": "원문 언어(한국어로)", "summary": "가장 중요한 문제를 담은 한 줄 요약 (해요체)", "koreaSummary": "가장 큰 문제를 한국 상황에 빗댄 한 문장 (해요체, 예: 한국으로 치면 명세서 없이 최저시급보다 적게 주는 현금 알바예요.)", "findings": [{"ruleId": "규칙 id 또는 null", "level": "risk|caution|info", "title": "짧은 제목", "quote": "원문 인용", "explanation": "설명", "korea": "한국에 빗댄 설명", "action": "할 일"}], "okItems": ["문제없는 조항 요약"], "extracted": {"hourlyRate": 숫자 또는 null, "employmentType": "casual|part_time|full_time|unknown", "hoursPerWeek": 숫자 또는 null, "payMethod": "cash|bank|unknown", "weeklyRent": 숫자 또는 null, "bondAmount": 숫자 또는 null}}`;
 
   return { system, user };
 }
@@ -170,10 +170,13 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<AnalysisResu
 
   try {
     const { system, user } = buildPrompt(text, input, docType, rules.findings);
+    let usedModel = TEXT_MODEL;
     const out = await chatJson<LlmAnalysis>({
-      model: TEXT_MODEL,
+      kind: "text",
       temperature: 0.1,
       maxTokens: 2000,
+      timeoutMs: 25_000,
+      onModel: (m) => (usedModel = m),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -192,7 +195,7 @@ export async function analyzeDocument(input: AnalyzeInput): Promise<AnalysisResu
       okItems: (out.okItems ?? []).filter((s) => typeof s === "string").slice(0, 5),
       extracted,
       mode: "ai",
-      model: TEXT_MODEL,
+      model: usedModel,
     };
   } catch (e) {
     const reason = e instanceof LlmError ? e.message : String(e);

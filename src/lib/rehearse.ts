@@ -55,7 +55,8 @@ Output one JSON object only: {"reply": string, "translated": string|null, "coach
     const out = await chatJson<LlmRehearse>({
       temperature: 0.6,
       maxTokens: 600,
-      timeoutMs: 30_000,
+      kind: "fast",
+      timeoutMs: 15_000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: `Goal of the user: ${scenario.goal}\n\nConversation so far:\n${transcript}` },

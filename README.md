@@ -43,8 +43,17 @@ npm run build     # 프로덕션 빌드
 |---|---|
 | `NVIDIA_API_KEY` | [NVIDIA Build](https://build.nvidia.com) API 키. 비우면 오프라인 모드 |
 | `NVIDIA_BASE_URL` | 기본값 `https://integrate.api.nvidia.com/v1` |
-| `NVIDIA_TEXT_MODEL` | 분석·리허설·메시지용 텍스트 모델 |
+| `NVIDIA_TEXT_MODEL` | 분석·메시지·교육 자료용 모델 (쉼표로 여러 개 = 앞에서부터 시도) |
+| `NVIDIA_FAST_MODEL` | 리허설 대화용 빠른 모델 |
 | `NVIDIA_VISION_MODEL` | 서류 사진 판독용 비전 모델 |
+
+모델 환경 변수는 비워 두면 코드 기본값(`src/lib/llm.ts`의 `MODELS`)을 쓴다. 2026-10-31 비교 결과 기본값은 아래와 같고, 앞 모델이 단종(410)·오류·시간 초과면 다음 모델로 자동으로 넘어간다. Nemotron 계열은 내부 추론(thinking)을 끄고 호출한다.
+
+| 용도 | 기본 모델 순서 |
+|---|---|
+| 분석·메시지 | `nvidia/nemotron-3.5-super-vl-120b-a12b` → `nvidia/nemotron-3-ultra-550b-a55b` → `openai/gpt-oss-20b` |
+| 리허설 | `nvidia/nemotron-3.5-bolt-e4b` → `nvidia/nemotron-3-ultra-550b-a55b` |
+| 사진 판독 | `nvidia/nemotron-3.5-super-vl-120b-a12b` → `meta/llama-3.2-90b-vision-instruct` |
 | `FORCE_OFFLINE` | `1`이면 키가 있어도 LLM을 부르지 않음 |
 
 `/api/health`에서 현재 모드와 모델을 확인할 수 있다.
