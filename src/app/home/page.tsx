@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { IconBell, IconCamera, IconCheck, IconChevron } from "@/components/icons";
+import { IconCamera, IconCheck, IconChevron } from "@/components/icons";
+import { Notifications, type Note } from "@/components/Notifications";
 import { LevelTag, TabBar, useProfile } from "@/components/ui";
+import type { Level } from "@/lib/types";
 import { CITIES } from "@/lib/kb/au";
 import { DOC_TYPE_LABEL, PERSONAS } from "@/lib/personas";
 import { daysSince, getCase, updateCase, type CaseState } from "@/lib/store";
@@ -41,21 +43,35 @@ export default function Home() {
   const risks = a?.findings.filter((f) => f.level === "risk").length ?? 0;
   const day = daysSince(profile.arrival);
   const arrived = new Date(`${profile.arrival}T00:00:00`).getTime() <= Date.now();
+  const nextTodo = pack.todos.find((t) => !done.has(t.id));
+  const notes: Note[] = [
+    ...(a && a.findings.length
+      ? [{ id: "doc", level: (risks ? "risk" : "caution") as Level, tag: risks ? `위험 ${risks}` : "주의", title: `${a.docTitle} — 짚어볼 곳 ${a.findings.length}건`, sub: "서명 전에 다시 확인하세요", href: "/result" }]
+      : []),
+    ...(nearby
+      ? [{ id: "nearby", level: "caution" as Level, tag: "경고", title: `${CITIES[profile.city].label} ${nearby.scope} 제보 ${nearby.count}건`, sub: nearby.issues.join(" · ") }]
+      : []),
+    ...(nextTodo ? [{ id: "todo", tag: "할 일", title: nextTodo.text, sub: `첫 30일 할 일 ${pack.todos.length - pack.todos.filter((t) => done.has(t.id)).length}개 남음` }] : []),
+    ...(c.shared ? [{ id: "shared", tag: "반영", title: "내 제보가 다른 사람들의 경고에 반영됐어요" }] : []),
+  ];
 
   return (
     <main className="phone">
       <div className="screen with-tabs" style={{ gap: 18 }}>
         <div className="topbar" style={{ justifyContent: "space-between" }}>
           <span className="wordmark">Global-In</span>
-          <Link href="/onboarding" className="icon-btn" aria-label="프로필 바꾸기" style={{ marginRight: -10 }}>
-            <IconBell />
-          </Link>
+          <Notifications notes={notes} />
         </div>
 
         <section className="box" style={{ overflow: "hidden" }} aria-label="내 체류 정보">
           <div style={{ padding: "14px 18px 10px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span className="mono small muted">ICN → {CITY_CODE[profile.city]}</span>
+              <span className="mono small muted">
+                ICN → {CITY_CODE[profile.city]}{" "}
+                <Link href="/onboarding" style={{ fontFamily: "var(--sans)", textDecoration: "underline", marginLeft: 6 }}>
+                  수정
+                </Link>
+              </span>
               <span className="display" style={{ fontSize: 32 }}>
                 {CITIES[profile.city].label}
               </span>
@@ -158,6 +174,10 @@ export default function Home() {
             <div className="card-wash small muted" style={{ minHeight: 88 }} aria-busy="true" />
           )}
         </section>
+
+        <Link href="/org/login" className="small faint" style={{ textDecoration: "underline", alignSelf: "center", padding: 8 }}>
+          기관 담당자용 대시보드
+        </Link>
 
         {c.shared && (
           <div className="notice" style={{ display: "flex", gap: 8, alignItems: "center" }}>

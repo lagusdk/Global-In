@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { IconChevron } from "@/components/icons";
 import { CITIES } from "@/lib/kb/au";
 import { PERSONA_LIST } from "@/lib/personas";
 import { getProfile, setProfile, updateCase } from "@/lib/store";
@@ -124,6 +126,14 @@ export default function Onboarding() {
           이름 (메시지 서명용, 선택)
           <input className="input" value={name} maxLength={20} placeholder="예: 지우" onChange={(e) => setName(e.target.value)} />
         </label>
+
+        <Link href="/org/login" className="card-wash" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+            <span className="small muted">대학 국제처 · 청년센터 · 기업 HR · 재외공관</span>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>기관 담당자이신가요? 대시보드로 가기</span>
+          </span>
+          <IconChevron />
+        </Link>
       </div>
 
       <div className="actions" style={{ flexDirection: "column", gap: 8 }}>
