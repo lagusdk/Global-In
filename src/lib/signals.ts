@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { db } from "./db";
 import type { Country, PersonaId, Report } from "./types";
 
 /**
@@ -87,15 +89,13 @@ export const SEED: SeedRow[] = [
   { city: "hiroshima", industry: "음식점", issue: "잔업수당 미지급", persona: "jobseeker", count: 4, prev: 4 },
 ];
 
-type Store = { reports: Report[] };
-const store: Store = ((globalThis as unknown as { __giStore?: Store }).__giStore ??= { reports: [] });
-
-export function addReport(r: Report) {
-  store.reports.push(r);
+/** 실제 제보는 저장소(Firestore 또는 메모리)에 쌓는다. */
+export async function addReport(r: Report) {
+  await (await db()).put("reports", randomUUID(), r);
 }
 
-export function reportCount() {
-  return store.reports.length;
+async function liveReports(): Promise<Report[]> {
+  return (await db()).list<Report>("reports");
 }
 
 export type CitySignal = { id: string; label: string; country: Country; x: number; y: number; labelSide: MapCity["labelSide"]; count: number; hidden: boolean };
@@ -111,15 +111,15 @@ export type SignalSummary = {
   liveReports: number;
 };
 
-function rows(persona?: PersonaId, country?: Country): SeedRow[] {
-  const live: SeedRow[] = store.reports.flatMap((r) =>
+async function rows(persona?: PersonaId, country?: Country): Promise<SeedRow[]> {
+  const live: SeedRow[] = (await liveReports()).flatMap((r) =>
     r.issues.map((issue) => ({ city: r.city, industry: r.industry ?? "기타", issue, persona: r.persona ?? "jobseeker", count: 1, prev: 0, live: true })),
   );
   return [...SEED, ...live].filter((r) => (!persona || r.persona === persona) && (!country || COUNTRY_OF[r.city] === country));
 }
 
-export function summarize(persona?: PersonaId, country: Country = "AU"): SignalSummary {
-  const data = rows(persona, country);
+export async function summarize(persona?: PersonaId, country: Country = "AU"): Promise<SignalSummary> {
+  const data = await rows(persona, country);
   const total = data.reduce((s, r) => s + r.count, 0);
 
   const cityTotals = new Map<string, number>();
@@ -151,19 +151,19 @@ export function summarize(persona?: PersonaId, country: Country = "AU"): SignalS
     .slice(0, 6);
 
   const byPersona = { student: 0, jobseeker: 0, worker: 0 } as Record<PersonaId, number>;
-  for (const r of rows(undefined, country)) byPersona[r.persona] += r.count;
+  for (const r of await rows(undefined, country)) byPersona[r.persona] += r.count;
 
-  return { total, cities, topIssues, patterns, byPersona, liveReports: store.reports.length };
+  return { total, cities, topIssues, patterns, byPersona, liveReports: data.filter((r) => r.live).length };
 }
 
 /** 홈의 '내 주변 경고' 카드: 같은 도시·업종의 제보 수. 업종 제보가 적으면 도시 전체로 넓힌다. */
-export function nearbyWarning(city: string, industry: string): { count: number; sample: number; live: number; issues: string[]; scope: string } | null {
+export async function nearbyWarning(city: string, industry: string): Promise<{ count: number; sample: number; live: number; issues: string[]; scope: string } | null> {
   const pick = (data: SeedRow[], scope: string) => {
     const count = data.reduce((s, r) => s + r.count, 0);
     if (count < K_THRESHOLD) return null;
     const live = data.filter((r) => r.live).reduce((s, r) => s + r.count, 0);
     return { count, sample: count - live, live, scope, issues: [...new Set([...data].sort((a, b) => b.count - a.count).map((r) => r.issue))].slice(0, 2) };
   };
-  const inCity = rows().filter((r) => r.city === city);
+  const inCity = (await rows()).filter((r) => r.city === city);
   return pick(inCity.filter((r) => r.industry === industry), industry) ?? pick(inCity, "전체 업종");
 }

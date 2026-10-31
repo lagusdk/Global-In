@@ -199,7 +199,7 @@ export default function Home() {
           <Link href="/org/login" className="small faint" style={{ textDecoration: "underline", padding: 8 }}>
             기관 담당자용 대시보드
           </Link>
-          <Link href="/mentor/login" className="small faint" style={{ textDecoration: "underline", padding: 8 }}>
+          <Link href="/mentor/apply" className="small faint" style={{ textDecoration: "underline", padding: 8 }}>
             멘토 서포터즈 참여
           </Link>
         </div>

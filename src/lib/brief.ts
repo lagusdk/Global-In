@@ -20,9 +20,9 @@ const HELP: Record<Country, string[]> = {
   JP: ["노동기준감독서·종합노동상담코너 — 임금·근로 상담", "외국인 노동자 상담 다이얼(후생노동성) — 다국어 상담", "소비자 핫라인 188 — 임대·계약 분쟁", "주일본 대한민국 대사관·총영사관 — 영사 조력"],
 };
 
-function templateBrief(org: OrgId, country: Country): Brief {
+async function templateBrief(org: OrgId, country: Country): Promise<Brief> {
   const o = ORGS[org];
-  const s = summarize(o.persona, country);
+  const s = await summarize(o.persona, country);
   const rules = rulesFor(country).filter((r) => !o.persona || r.personas.includes(o.persona)).slice(0, 5);
   return {
     title: `${o.doc} (${COUNTRIES[country].label})`,
@@ -39,7 +39,7 @@ function templateBrief(org: OrgId, country: Country): Brief {
 }
 
 export async function makeBrief(org: OrgId, country: Country = "AU"): Promise<Brief> {
-  const template = templateBrief(org, country);
+  const template = await templateBrief(org, country);
   if (!llmEnabled()) return template;
   const o = ORGS[org];
   try {

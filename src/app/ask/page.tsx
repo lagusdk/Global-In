@@ -62,28 +62,24 @@ function QuestionItem({ q, open, onToggle }: { q: QuestionView; open: boolean; o
       </button>
       {open && !hidden && (
         <div style={{ padding: "0 0 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {q.related && q.related.length > 0 && (
-            <div className="small muted" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span>관련 근거</span>
-              {q.related.map((r) => (
-                <a key={r.id} href={r.source.url || undefined} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-                  {r.title}
-                </a>
-              ))}
-            </div>
-          )}
           {q.answer ? (
             <div className="card-wash" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <span style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span className="tag-caution">멘토 서포터즈</span>
+                {q.answer.byAI ? <span className="tag-dark">AI 답변</span> : <span className="tag-caution">서포터즈</span>}
                 <span style={{ fontSize: 13, fontWeight: 700 }}>{q.answer.mentor}</span>
                 <span className="small muted">{q.answer.major}</span>
               </span>
               <span className="body" style={{ fontSize: 14 }}>{q.answer.text}</span>
-              <span className="small faint">멘토의 경험과 공부를 바탕으로 한 안내예요. 법률 자문이 필요하면 공식 상담 창구를 이용하세요.</span>
+              <span className="small faint">
+                {q.answer.byAI
+                  ? "서포터즈 답변이 48시간 동안 없어 AI가 공식 근거를 바탕으로 대신 답했어요. 서포터즈가 답하면 바뀔 수 있어요."
+                  : "서포터즈의 경험과 공부를 바탕으로 한 안내예요. 법률 자문이 필요하면 공식 상담 창구를 이용하세요."}
+              </span>
             </div>
           ) : (
-            <div className="notice">AI가 질문을 정리해서 멘토에게 전달했어요. 답변이 달리면 여기에서 볼 수 있어요.</div>
+            <div className="notice">
+              서포터즈에게 전달됐어요. {q.aiInHours !== undefined ? `${q.aiInHours}시간 안에 서포터즈 답변이 없으면 AI가 공식 근거를 바탕으로 먼저 답해요.` : ""}
+            </div>
           )}
         </div>
       )}
@@ -132,7 +128,7 @@ export default function Ask() {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
       saveMine([{ id: d.id, token: d.token }, ...readMine()].slice(0, 30));
-      setSent(d.summary);
+      setSent("ok");
       setText("");
       setTab("mine");
       await load();
@@ -157,7 +153,7 @@ export default function Ask() {
           <span className="hl">멘토에게 물어보세요</span>
         </h1>
         <p className="body" style={{ margin: 0 }}>
-          {COUNTRIES[country].langLabel}·법학 전공 <b style={{ color: "#111" }}>멘토 서포터즈</b>가 답해요. 이름 없이 질문하고, 자물쇠를 걸면 멘토만 볼 수 있어요.
+          {COUNTRIES[country].langLabel}·법학 전공 <b style={{ color: "#111" }}>서포터즈</b>(관리기관 승인을 받은 청년)가 직접 답해요. 이름 없이 질문하고, 자물쇠를 걸면 멘토만 볼 수 있어요.
         </p>
 
         <details className="card-wash" style={{ fontSize: 13, lineHeight: 1.6 }}>
@@ -170,7 +166,7 @@ export default function Ask() {
               <b>어려워요</b> — 법률 판단이나 대리, 소송·신고 대행, 긴급 상황 대응 (멘토는 변호사·노무사가 아니에요)
             </span>
             <span>
-              <b>답변 시간</b> — 보통 1~2일 안에 달려요. 바로 답이 필요하면 공식 상담 창구를 먼저 이용하세요.
+              <b>답변 시간</b> — 보통 1~2일 안에 달려요. 48시간 안에 서포터즈 답변이 없으면 AI가 공식 근거로 먼저 답해요. 급하면 공식 상담 창구를 먼저 이용하세요.
             </span>
             <span>
               <b>이럴 땐 바로 공식 기관</b> — 폭력·협박, 여권·재류카드를 빼앗김, 임금을 전혀 못 받음, 비자 문제 → 현지 노동 상담기관이나 대사관·총영사관 (외교부 영사콜센터 +82-2-3210-0404, 24시간)
@@ -207,7 +203,7 @@ export default function Ask() {
               {busy ? <Spinner label="정리 중…" /> : "익명으로 질문하기"}
             </button>
           </div>
-          <span className="small faint">이름·연락처·사업장 이름은 적지 마세요. 질문은 AI가 요약·분류해서 멘토에게 전달돼요.</span>
+          <span className="small faint">이름·연락처·사업장 이름은 적지 마세요. 욕설·개인정보가 있으면 등록되지 않아요.</span>
           {error && (
             <div className="error" role="alert">
               {error}
@@ -215,7 +211,7 @@ export default function Ask() {
           )}
           {sent && (
             <div className="notice" role="status">
-              질문을 보냈어요. AI 요약: <b style={{ color: "#111" }}>{sent}</b>
+              질문을 보냈어요. 서포터즈 답변을 기다려 주세요 (48시간 안에 답이 없으면 AI가 먼저 답해요).
             </div>
           )}
         </section>
@@ -243,7 +239,7 @@ export default function Ask() {
           )}
         </section>
 
-        <Link href="/mentor/login" className="card-wash" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Link href="/mentor/apply" className="card-wash" style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
             <span className="small muted">외국어·법학 전공 대학생이라면</span>
             <span style={{ fontSize: 14, fontWeight: 700 }}>

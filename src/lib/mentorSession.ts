@@ -3,19 +3,12 @@
 import type { Country } from "./types";
 
 /**
- * 멘토 서포터즈 데모 로그인. 인증 없이 이 기기(localStorage)에만 저장한다.
- * 실서비스에서는 재학·전공 증빙 확인 후 계정을 발급한다.
+ * 서포터즈 신청 정보. 신청서 id와 token만 이 기기(localStorage)에 저장한다.
+ * 심사 상태와 답변 권한은 서버(관리기관 승인)가 정한다.
  */
-export type MentorSession = {
-  name: string;
-  major: string;
-  country: Country;
-  experience?: string;
-  answered: number;
-  at: string;
-};
+export type MentorSession = { id: string; token: string; nickname: string; country: Country };
 
-const KEY = "gi.mentor";
+const KEY = "gi.mentorApp";
 
 export function getMentor(): MentorSession | null {
   try {
