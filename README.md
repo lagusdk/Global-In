@@ -28,7 +28,7 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # NVIDIA_API_KEY 입력 (없으면 오프라인 모드)
+# .env 파일을 만들고 아래 '환경 변수' 표의 값을 넣는다 (키가 없으면 오프라인 모드)
 npm run dev                  # http://localhost:3000
 ```
 
