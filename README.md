@@ -59,7 +59,8 @@ npm run build     # 프로덕션 빌드
 | `NVIDIA_FAST_MODEL` | 리허설 대화용 빠른 모델 |
 | `NVIDIA_VISION_MODEL` | 서류 사진 판독용 비전 모델 |
 | `FORCE_OFFLINE` | `1`이면 키가 있어도 LLM을 부르지 않음 |
-| `FIREBASE_PROJECT_ID` · `FIREBASE_CLIENT_EMAIL` · `FIREBASE_PRIVATE_KEY` | Firebase **서비스 계정 키**(서버용). 셋 다 있으면 질문·제보·신청서를 Firestore에 저장, 없으면 서버 메모리. 웹 설정값(apiKey 등)은 쓰지 않는다. `/api/health`의 `storage`로 확인 |
+| `FIREBASE_PROJECT_ID` · `FIREBASE_CLIENT_EMAIL` · `FIREBASE_PRIVATE_KEY` | Firebase **서비스 계정 키**(서버용). 셋 다 있으면 질문·제보·신청서를 Firestore에 저장, 없으면 서버 메모리. 웹 설정값(apiKey 등)은 쓰지 않는다. 키에 따옴표·`
+` 문자열이 섞이거나 줄바꿈이 빠져도 코드가 PEM으로 정리한다. Firestore 호출이 실패하면 메모리로 넘어가고(5분 뒤 재시도) `/api/health`의 `storage`·`storageError`로 확인 |
 
 모델 환경 변수는 비워 두면 코드 기본값(`src/lib/llm.ts`의 `MODELS`)을 쓴다. 2026-10-31 비교 결과 기본값은 아래와 같다. Nemotron 계열은 내부 추론(thinking)을 끄고 호출한다(켜면 3~7배 느려지고 빈 답이 오기도 함).
 
