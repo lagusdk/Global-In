@@ -49,6 +49,13 @@ npm run build     # 프로덕션 빌드
 
 `/api/health`에서 현재 모드와 모델을 확인할 수 있다.
 
+> **API 키 만료일: 2027-04-30** — NVIDIA Build 키가 이 날짜에 만료된다. 만료 전에 새 키를 발급받아 로컬 `.env`와 Vercel 환경 변수(`NVIDIA_API_KEY`)를 함께 바꿔야 한다. 만료돼도 앱은 오프라인 모드(규칙 엔진)로 계속 동작한다.
+
+## 배포
+
+- 테스트 URL: https://global-in.vercel.app
+- Vercel이 `main` 브랜치 푸시마다 자동 배포한다. API 키는 Vercel 프로젝트 **Settings → Environment Variables**에 넣는다 (`.env`는 커밋하지 않는다).
+
 ## 구조
 
 ```
